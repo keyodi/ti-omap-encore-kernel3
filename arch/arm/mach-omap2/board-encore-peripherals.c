@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2009 Texas Instruments Inc.
  *
- * Modified from mach-omap2/board-encore2.c
+ * Modified from mach-omap2/board-encore.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -451,7 +451,7 @@ static struct synaptics_i2c_rmi_platform_data synaptics_platform_data[] = {
 	}
 };
 
-static struct i2c_board_info __initdata encore2_i2c_bus2_info[] = {
+static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME,  0x20),
 		.platform_data = &synaptics_platform_data,
@@ -463,14 +463,14 @@ static struct i2c_board_info __initdata encore2_i2c_bus2_info[] = {
 	defined(CONFIG_VIDEO_OMAP3)
 	{
 		I2C_BOARD_INFO(IMX046_NAME, IMX046_I2C_ADDR),
-		.platform_data = &encore2_imx046_platform_data,
+		.platform_data = &encore_imx046_platform_data,
 	},
 #endif
 #if (defined(CONFIG_VIDEO_LV8093) || defined(CONFIG_VIDEO_LV8093_MODULE)) && \
 	defined(CONFIG_VIDEO_OMAP3)
 	{
 		I2C_BOARD_INFO(LV8093_NAME,  LV8093_AF_I2C_ADDR),
-		.platform_data = &encore2_lv8093_platform_data,
+		.platform_data = &encore_lv8093_platform_data,
 	},
 #endif
 
@@ -480,10 +480,10 @@ static struct i2c_board_info __initdata encore2_i2c_bus2_info[] = {
 static int __init omap_i2c_init(void)
 {
 	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &encore_twldata);
-	omap_register_i2c_bus(2, 100, encore2_i2c_bus2_info,
-			ARRAY_SIZE(encore2_i2c_bus2_info));
-	//omap_register_i2c_bus(3, 400, encore2_i2c_bus3_info,
-			//ARRAY_SIZE(encore2_i2c_bus3_info));
+	omap_register_i2c_bus(2, 100, encore_i2c_bus2_info,
+			ARRAY_SIZE(encore_i2c_bus2_info));
+	//omap_register_i2c_bus(3, 400, encore_i2c_bus3_info,
+			//ARRAY_SIZE(encore_i2c_bus3_info));
 	return 0;
 }
 
