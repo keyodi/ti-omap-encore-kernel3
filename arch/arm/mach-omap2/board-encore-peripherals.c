@@ -34,10 +34,21 @@
 #include <linux/switch.h>
 #include <mach/board-zoom.h>
 
+#include <linux/input/cyttsp.h>
+#include <linux/input/ft5x06.h>
+
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
 #include "twl4030.h"
+
+#define CYTTSP_I2C_SLAVEADDRESS  34
+#define OMAP_CYTTSP_GPIO         99
+#define OMAP_CYTTSP_RESET_GPIO   46
+
+#define FT5x06_I2C_SLAVEADDRESS  (0x70 >> 1)
+#define OMAP_FT5x06_GPIO         99
+#define OMAP_FT5x06_RESET_GPIO   46
 
 #define OMAP_encore_WLAN_PMENA_GPIO	(101)
 #define OMAP_encore_WLAN_IRQ_GPIO		(162)
@@ -58,6 +69,98 @@
 #define MAX_CYCLES				(0x7f)
 #define MIN_CYCLES				(75)
 #define LCD_PANEL_ENABLE_GPIO			(7 + OMAP_MAX_GPIO_LINES)
+
+int  ft5x06_dev_init(int resource)
+{
+    if (resource)
+    {
+        if (gpio_request(OMAP_FT5x06_RESET_GPIO, "ft5x06_reset") < 0)
+        {
+            printk(KERN_ERR "can't get ft5x06 xreset GPIO\n");
+            return -1;
+        }
+
+        if (gpio_request(OMAP_FT5x06_GPIO, "ft5x06_touch") < 0)
+        {
+            printk(KERN_ERR "can't get ft5x06 interrupt GPIO\n");
+            return -1;
+        }
+
+        gpio_direction_input(OMAP_FT5x06_GPIO);
+    }
+    else
+    {
+        gpio_free(OMAP_FT5x06_GPIO);
+        gpio_free(OMAP_FT5x06_RESET_GPIO);
+    }
+
+    return 0;
+}
+
+static struct ft5x06_platform_data ft5x06_platform_data = {
+    .maxx = 1024,
+    .maxy = 600,
+    .flags = FLIP_DATA_FLAG | REVERSE_Y_FLAG | REVERSE_X_FLAG,
+    .reset_gpio = OMAP_FT5x06_RESET_GPIO,
+    .use_st = FT_USE_ST,
+    .use_mt = FT_USE_MT,
+    .use_trk_id = 1, //FT_USE_TRACKING_ID,
+    .use_sleep = FT_USE_SLEEP,
+    .use_gestures = 0,
+};
+
+int  cyttsp_dev_init(int resource)
+{
+        if (resource)
+        {
+                if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
+                        printk(KERN_ERR "can't get tma340 xreset GPIO\n");
+                        return -1;
+                }
+
+                if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
+                        printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
+                        return -1;
+                }
+
+                gpio_direction_input(OMAP_CYTTSP_GPIO);
+        }
+        else
+        {
+                gpio_free(OMAP_CYTTSP_GPIO);
+                gpio_free(OMAP_CYTTSP_RESET_GPIO);
+        }
+    return 0;
+}
+
+static struct cyttsp_platform_data cyttsp_platform_data = {
+        .maxx = 480,
+        .maxy = 800,
+        .flags = FLIP_DATA_FLAG | REVERSE_Y_FLAG,
+        .gen = CY_GEN3,
+        .use_st = CY_USE_ST,
+        .use_mt = CY_USE_MT,
+        .use_hndshk = CY_SEND_HNDSHK,
+        .use_trk_id = 1, //CY_USE_TRACKING_ID,
+        .use_sleep = CY_USE_SLEEP,
+        .use_gestures = 0,
+        /* activate up to 4 groups
+         * and set active distance
+         */
+        .gest_set = 0,
+        /* change act_intrvl to customize the Active power state 
+         * scanning/processing refresh interval for Operating mode
+         */
+        .act_intrvl = CY_ACT_INTRVL_DFLT,
+        /* change tch_tmout to customize the touch timeout for the
+         * Active power state for Operating mode
+         */
+        .tch_tmout = CY_TCH_TMOUT_DFLT,
+        /* change lp_intrvl to customize the Low Power power state 
+         * scanning/processing refresh interval for Operating mode
+         */
+        .lp_intrvl = CY_LP_INTRVL_DFLT,
+};
 
 /* Encore keymap*/
 static uint32_t board_keymap[] = {
@@ -453,10 +556,16 @@ static struct synaptics_i2c_rmi_platform_data synaptics_platform_data[] = {
 
 static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 	{
-		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME,  0x20),
-		.platform_data = &synaptics_platform_data,
-		.irq = OMAP_GPIO_IRQ(OMAP_SYNAPTICS_GPIO),
+		I2C_BOARD_INFO(CY_I2C_NAME, CYTTSP_I2C_SLAVEADDRESS),
+		.platform_data = &cyttsp_platform_data,
+		.irq = OMAP_GPIO_IRQ(OMAP_CYTTSP_GPIO),
 	},
+	{
+ 		I2C_BOARD_INFO(FT_I2C_NAME, FT5x06_I2C_SLAVEADDRESS),
+ 		.platform_data = &ft5x06_platform_data,
+		.irq = OMAP_GPIO_IRQ(OMAP_FT5x06_GPIO),
+	},	
+
 #if 0
 
 #if (defined(CONFIG_VIDEO_IMX046) || defined(CONFIG_VIDEO_IMX046_MODULE)) && \
