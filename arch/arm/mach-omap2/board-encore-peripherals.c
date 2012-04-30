@@ -30,15 +30,22 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <linux/switch.h>
-#include <mach/board-zoom.h>
+#include <mach/board-encore.h>
 
 #include <linux/input/cyttsp.h>
 #include <linux/input/ft5x06.h>
+#include <linux/input/kxtf9.h>
+#include <linux/power/max17042.h>
+#include <linux/power/max8903.h>
 
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
 #include "twl4030.h"
+
+#define KXTF9_DEVICE_ID                 "kxtf9"
+#define KXTF9_I2C_SLAVE_ADDRESS         0x0F
+#define KXTF9_GPIO_FOR_PWR              34
 
 #define CYTTSP_I2C_SLAVEADDRESS  34
 #define OMAP_CYTTSP_GPIO         99
@@ -50,23 +57,76 @@
 
 #define OMAP_encore_WLAN_PMENA_GPIO	(101)
 #define OMAP_encore_WLAN_IRQ_GPIO		(162)
-#define OMAP_SYNAPTICS_GPIO			(163)
 
-/* PWM output/clock enable for LCD backlight*/
-#define REG_INTBR_GPBR1				(0xc)
-#define REG_INTBR_GPBR1_PWM1_OUT_EN		(0x1 << 3)
-#define REG_INTBR_GPBR1_PWM1_OUT_EN_MASK	(0x1 << 3)
-#define REG_INTBR_GPBR1_PWM1_CLK_EN		(0x1 << 1)
-#define REG_INTBR_GPBR1_PWM1_CLK_EN_MASK	(0x1 << 1)
+static int max17042_gpio_for_irq = 0;
+static int kxtf9_gpio_for_irq = 0;
 
-/* pin mux for LCD backlight*/
-#define REG_INTBR_PMBR1				(0xd)
-#define REG_INTBR_PMBR1_PWM1_PIN_EN		(0x3 << 4)
-#define REG_INTBR_PMBR1_PWM1_PIN_MASK		(0x3 << 4)
+#ifdef CONFIG_BATTERY_MAX17042
+static void max17042_dev_init(void)
+{
+	printk("board-3621_evt1a.c: max17042_dev_init ...\n");
 
-#define MAX_CYCLES				(0x7f)
-#define MIN_CYCLES				(75)
-#define LCD_PANEL_ENABLE_GPIO			(7 + OMAP_MAX_GPIO_LINES)
+	if (gpio_request(max17042_gpio_for_irq, "max17042_irq") < 0) {
+		printk(KERN_ERR "Can't get GPIO for max17042 IRQ\n");
+		return;
+	}
+
+	printk("board-3621_evt1a.c: max17042_dev_init > Init max17042 irq pin %d !\n", max17042_gpio_for_irq);
+	gpio_direction_input(max17042_gpio_for_irq);
+	printk("max17042 GPIO pin read %d\n", gpio_get_value(max17042_gpio_for_irq));
+}
+#endif
+
+static void kxtf9_dev_init(void)
+{
+	printk("board-3621_evt1a.c: kxtf9_dev_init ...\n");
+
+	if (gpio_request(kxtf9_gpio_for_irq, "kxtf9_irq") < 0)
+	{
+		printk("Can't get GPIO for kxtf9 IRQ\n");
+		return;
+	}
+
+	printk("board-3621_evt1a.c: kxtf9_dev_init > Init kxtf9 irq pin %d !\n",
+			kxtf9_gpio_for_irq);
+	gpio_direction_input(kxtf9_gpio_for_irq);
+}
+
+
+struct kxtf9_platform_data kxtf9_platform_data_here = {
+	.min_interval   = 1,
+	.poll_interval  = 1000,
+
+	.g_range        = KXTF9_G_8G,
+	.shift_adj      = SHIFT_ADJ_2G,
+
+	// Map the axes from the sensor to the device.
+
+	//. SETTINGS FOR THE EVT1A:
+	.axis_map_x     = 0,
+	.axis_map_y     = 1,
+	.axis_map_z     = 2,
+	.negate_x       = 0,
+	.negate_y       = 0,
+	.negate_z       = 0,
+	.data_odr_init          = ODR12_5F,
+	.ctrl_reg1_init         = KXTF9_G_8G | RES_12BIT | TDTE | WUFE | TPE,
+	.int_ctrl_init          = KXTF9_IEN | KXTF9_IEA | KXTF9_IEL,
+	.int_ctrl_init          = KXTF9_IEN,
+	.tilt_timer_init        = 0x03,
+	.engine_odr_init        = OTP12_5 | OWUF50 | OTDT400,
+	.wuf_timer_init         = 0x16,
+	.wuf_thresh_init        = 0x28,
+	.tdt_timer_init         = 0x78,
+	.tdt_h_thresh_init      = 0xFF,
+	.tdt_l_thresh_init      = 0x14,
+	.tdt_tap_timer_init     = 0x53,
+	.tdt_total_timer_init   = 0x24,
+	.tdt_latency_timer_init = 0x10,
+	.tdt_window_timer_init  = 0xA0,
+
+	.gpio = 0,
+};
 
 int  ft5x06_dev_init(int resource)
 {
@@ -303,6 +363,149 @@ static struct platform_device omap_vwlan_device = {
 	},
 };
 
+#ifdef CONFIG_CHARGER_MAX8903
+
+static struct resource max8903_gpio_resources_evt1a[] = {
+	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
+		.start	= MAX8903_GPIO_CHG_EN,
+		.end	= MAX8903_GPIO_CHG_EN,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
+		.start	= MAX8903_GPIO_CHG_FLT,
+		.end	= MAX8903_GPIO_CHG_FLT,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
+		.start	= MAX8903_GPIO_CHG_IUSB,
+		.end	= MAX8903_GPIO_CHG_IUSB,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
+		.start	= MAX8903_GPIO_CHG_USUS_EVT1A,
+		.end	= MAX8903_GPIO_CHG_USUS_EVT1A,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
+		.start	= MAX8903_GPIO_CHG_ILM_EVT1A,
+		.end	= MAX8903_GPIO_CHG_ILM_EVT1A,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
+		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
+		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}
+};
+
+static struct resource max8903_gpio_resources_evt1b[] = {
+	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
+		.start	= MAX8903_GPIO_CHG_EN,
+		.end	= MAX8903_GPIO_CHG_EN,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
+		.start	= MAX8903_GPIO_CHG_FLT,
+		.end	= MAX8903_GPIO_CHG_FLT,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
+		.start	= MAX8903_GPIO_CHG_IUSB,
+		.end	= MAX8903_GPIO_CHG_IUSB,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
+		.start	= MAX8903_GPIO_CHG_USUS_EVT1B,
+		.end	= MAX8903_GPIO_CHG_USUS_EVT1B,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
+		.start	= MAX8903_GPIO_CHG_ILM_EVT1B,
+		.end	= MAX8903_GPIO_CHG_ILM_EVT1B,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
+		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
+		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}
+};
+
+static struct resource max8903_gpio_resources_dvt[] = {
+	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
+		.start	= MAX8903_GPIO_CHG_EN,
+		.end	= MAX8903_GPIO_CHG_EN,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
+		.start	= MAX8903_GPIO_CHG_FLT,
+		.end	= MAX8903_GPIO_CHG_FLT,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
+		.start	= MAX8903_GPIO_CHG_IUSB,
+		.end	= MAX8903_GPIO_CHG_IUSB,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
+		.start	= MAX8903_GPIO_CHG_USUS_DVT,
+		.end	= MAX8903_GPIO_CHG_USUS_DVT,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
+		.start	= MAX8903_GPIO_CHG_ILM_DVT,
+		.end	= MAX8903_GPIO_CHG_ILM_DVT,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
+		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
+		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
+		.flags	= IORESOURCE_IO,
+	}
+};
+
+static struct platform_device max8903_charger_device = {
+	.name           = "max8903_charger",
+	.id             = -1,
+};
+
+static inline void max8903_charger_init(void)
+{
+	const int board_type = encore_board_type();
+
+	if (board_type >= DVT) {
+		max8903_charger_device.resource = max8903_gpio_resources_dvt;
+		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_dvt);
+	} else if (board_type >= EVT1B) {
+		max8903_charger_device.resource = max8903_gpio_resources_evt1b;
+		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1b);
+	} else if (board_type == EVT1A) {
+		max8903_charger_device.resource = max8903_gpio_resources_evt1a;
+		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1a);
+	} else {
+		pr_err("%s: Encore board %d not supported\n", __func__, board_type);
+		return;
+	}
+	platform_device_register(&max8903_charger_device);
+}
+
+#endif
+
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.irq = OMAP_GPIO_IRQ(OMAP_encore_WLAN_IRQ_GPIO),
 	/* encore ref clock is 26 MHz */
@@ -315,7 +518,11 @@ static struct omap2_hsmmc_info mmc[] = {
 		.mmc		= 2,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
+#ifdef CONFIG_PM_RUNTIME
 		.power_saving	= true,
+#endif
 	},
 	{
 		.name		= "external",
@@ -323,8 +530,9 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
-		.nonremovable	= true,
+#ifdef CONFIG_PM_RUNTIME
 		.power_saving	= true,
+#endif
 	},
 	{
 		.name		= "wl1271",
@@ -374,8 +582,6 @@ static struct regulator_init_data encore_vdac = {
 static int encore_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	int ret;
-
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
@@ -387,13 +593,7 @@ static int encore_twl_gpio_setup(struct device *dev,
 	encore_vsim_supply.dev = mmc[0].dev;
 	encore_vmmc2_supply.dev = mmc[1].dev;
 
-	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
-			       "lcd enable");
-	if (ret)
-		pr_err("Failed to get LCD_PANEL_ENABLE_GPIO (gpio%d).\n",
-				LCD_PANEL_ENABLE_GPIO);
-
-	return ret;
+	return 0;
 }
 
 static struct twl4030_usb_data encore_usb_data = {
@@ -436,6 +636,27 @@ static struct twl4030_platform_data encore_twldata = {
 	.vdac		= &encore_vdac,
 };
 
+#ifdef CONFIG_BATTERY_MAX17042
+struct max17042_platform_data max17042_platform_data_here = {
+
+	.gpio = 0,
+};
+#endif
+
+static struct i2c_board_info __initdata encore_i2c_boardinfo[] = {
+	{
+		I2C_BOARD_INFO(KXTF9_DEVICE_ID, KXTF9_I2C_SLAVE_ADDRESS),
+		.platform_data = &kxtf9_platform_data_here,
+		.irq = 0,
+	},
+	{
+		I2C_BOARD_INFO(MAX17042_DEVICE_ID, MAX17042_I2C_SLAVE_ADDRESS),
+		.platform_data = &max17042_platform_data_here,
+		.irq = 0,
+	},
+
+};
+
 static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 	{
 		I2C_BOARD_INFO(CY_I2C_NAME, CYTTSP_I2C_SLAVEADDRESS),
@@ -452,11 +673,12 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 
 static int __init omap_i2c_init(void)
 {
-	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &encore_twldata);
-	omap_register_i2c_bus(2, 100, encore_i2c_bus2_info,
+	//omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &encore_twldata);
+	omap3_pmic_init("twl4030", &encore_twldata);
+	omap_register_i2c_bus(1, 100, encore_i2c_boardinfo,
+			ARRAY_SIZE(encore_i2c_boardinfo));
+	omap_register_i2c_bus(2, 400, encore_i2c_bus2_info,
 			ARRAY_SIZE(encore_i2c_bus2_info));
-	//omap_register_i2c_bus(3, 400, encore_i2c_bus3_info,
-			//ARRAY_SIZE(encore_i2c_bus3_info));
 	return 0;
 }
 
@@ -467,14 +689,39 @@ static void enable_board_wakeup_source(void)
 		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
+void __init encore_board_init(void)
+{
+	const int board_type = encore_board_type();
+
+	if ( board_type == EVT1A ){
+		max17042_gpio_for_irq = 98;
+		kxtf9_gpio_for_irq = 99;
+	} else if ( board_type >= EVT1B ) {
+		max17042_gpio_for_irq = 65;
+		kxtf9_gpio_for_irq = 66;
+	}
+
+	max17042_platform_data_here.gpio = max17042_gpio_for_irq;
+	encore_i2c_boardinfo[1].irq = OMAP_GPIO_IRQ(max17042_gpio_for_irq);
+	kxtf9_platform_data_here.gpio = kxtf9_gpio_for_irq;
+	encore_i2c_boardinfo[0].irq = OMAP_GPIO_IRQ(kxtf9_gpio_for_irq);
+	omap_mux_init_signal("sys_pwron_reset_out", OMAP_MUX_MODE3);
+	omap_mux_init_signal("fref_clk3_req", OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN);
+}
+
 void __init zoom_peripherals_init(void)
 {
 	platform_add_devices(encore_board_devices,
 		ARRAY_SIZE(encore_board_devices));
 	twl4030_get_scripts(&encore_t2scripts_data);
+	encore_board_init();
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
+
+	max8903_charger_init();
+	kxtf9_dev_init();
+        max17042_dev_init();
 }
