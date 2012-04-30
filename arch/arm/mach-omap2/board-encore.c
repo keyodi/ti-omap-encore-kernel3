@@ -33,7 +33,6 @@
 
 #include "board-flash.h"
 #include "mux.h"
-#include "sdram-micron-mt46h32m32lf-6.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 #include "omap_ion.h"
 
@@ -48,12 +47,8 @@
 static void __init omap_zoom_init_early(void)
 {
 	omap2_init_common_infrastructure();
-	if (machine_is_omap_zoom2())
-		omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-					  mt46h32m32lf6_sdrc_params);
-	else if (machine_is_omap_zoom3())
-		omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
-					  h8mbx00u0mer0em_sdrc_params);
+	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
+				h8mbx00u0mer0em_sdrc_params);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -73,48 +68,9 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP3_MUX(ETK_D6, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#else
+#define board_mux       NULL
 #endif
-
-static struct mtd_partition zoom_nand_partitions[] = {
-	/* All the partition sizes are listed in terms of NAND block size */
-	{
-		.name		= "X-Loader-NAND",
-		.offset		= 0,
-		.size		= 4 * (64 * 2048),	/* 512KB, 0x80000 */
-		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
-	},
-	{
-		.name		= "U-Boot-NAND",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x80000 */
-		.size		= 10 * (64 * 2048),	/* 1.25MB, 0x140000 */
-		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
-	},
-	{
-		.name		= "Boot Env-NAND",
-		.offset		= MTDPART_OFS_APPEND,   /* Offset = 0x1c0000 */
-		.size		= 2 * (64 * 2048),	/* 256KB, 0x40000 */
-	},
-	{
-		.name		= "Kernel-NAND",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x0200000*/
-		.size		= 240 * (64 * 2048),	/* 30M, 0x1E00000 */
-	},
-	{
-		.name		= "system",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x2000000 */
-		.size		= 1760 * (64 * 2048),	/* 220M, 0xDC00000 */
-	},
-	{
-		.name		= "userdata",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x1C000000*/
-		.size		= 512 * (64 * 2048),	/* 64M, 0x4000000 */
-	},
-	{
-		.name		= "cache",
-		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x1E000000*/
-		.size		= 256 * (64 * 2048),	/* 32M, 0x2000000 */
-	},
-};
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0]		= OMAP_USBHS_PORT_MODE_UNUSED,
@@ -215,25 +171,19 @@ static void zoom3_wifi_init(void)
 
 static void __init omap_zoom_init(void)
 {
-	if (machine_is_omap_zoom2()) {
-		omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	} else if (machine_is_omap_zoom3()) {
-		omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
-		omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
-		omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
-		usbhs_init(&usbhs_bdata);
-	}
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
+	omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
+	usbhs_init(&usbhs_bdata);
 
-	board_nand_init(zoom_nand_partitions, ARRAY_SIZE(zoom_nand_partitions),
-						ZOOM_NAND_CS, NAND_BUSWIDTH_16);
-	zoom3_wifi_init();
+	//zoom3_wifi_init();
 	zoom_debugboard_init();
 	zoom_peripherals_init();
 	zoom_display_init();
 	omap_register_ion();
 	/* Added to register zoom devices */
-	platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
-	wl127x_vio_leakage_fix();
+	//platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
+	//wl127x_vio_leakage_fix();
 }
 
 static void __init zoom_reserve(void)
@@ -247,25 +197,9 @@ static void __init zoom_reserve(void)
 	omap_reserve();
 }
 
-MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
-	.boot_params	= 0x80000100,
-	.reserve	= omap_reserve,
-	.map_io		= omap3_map_io,
-	.init_early	= omap_zoom_init_early,
-	.init_irq	= omap_init_irq,
-	.init_machine	= omap_zoom_init,
-	.timer		= &omap_timer,
-MACHINE_END
-
-MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
-	.boot_params	= 0x80000100,
-	.reserve	= zoom_reserve,
-	.map_io		= omap3_map_io,
-	.init_early	= omap_zoom_init_early,
-	.init_irq	= omap_init_irq,
-	.init_machine	= omap_zoom_init,
-	.timer		= &omap_timer,
-MACHINE_END
+#ifdef CONFIG_OMAP_MUX
+  #error "EVT1A port relies on the bootloader for MUX configuration."
+#endif
 
 MACHINE_START(ENCORE, "encore")
 	.boot_params	= 0x80000100,

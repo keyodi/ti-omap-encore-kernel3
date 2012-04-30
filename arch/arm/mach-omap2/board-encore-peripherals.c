@@ -20,8 +20,6 @@
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
 #include <linux/mmc/host.h>
-#include <linux/synaptics_i2c_rmi.h>
-#include <linux/leds-omap4430sdp-display.h>
 
 #include <media/v4l2-int-device.h>
 
@@ -275,19 +273,6 @@ static struct regulator_init_data encore_vsim = {
 	.consumer_supplies      = &encore_vsim_supply,
 };
 
-static struct gpio_switch_platform_data headset_switch_data = {
-	.name		= "h2w",
-	.gpio		= OMAP_MAX_GPIO_LINES + 2, /* TWL4030 GPIO_2 */
-};
-
-static struct platform_device headset_switch_device = {
-	.name		= "switch-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &headset_switch_data,
-	}
-};
-
 static struct regulator_init_data encore_vmmc3 = {
 	.constraints = {
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
@@ -307,8 +292,7 @@ static struct fixed_voltage_config encore_vwlan = {
 };
 
 static struct platform_device *encore_board_devices[] __initdata = {
-	&encore_keys_gpio,	
-	&headset_switch_device,
+	&encore_keys_gpio,
 };
 
 static struct platform_device omap_vwlan_device = {
@@ -323,80 +307,6 @@ static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.irq = OMAP_GPIO_IRQ(OMAP_encore_WLAN_IRQ_GPIO),
 	/* encore ref clock is 26 MHz */
 	.board_ref_clock = 1,
-};
-
-static void encore_pwm_config(u8 brightness)
-{
-	u8 pwm_off = 0;
-
-	pwm_off = (MIN_CYCLES * (LED_FULL - brightness) +
-		   MAX_CYCLES * (brightness - LED_OFF)) /
-		(LED_FULL - LED_OFF);
-
-	pwm_off = clamp(pwm_off, (u8)MIN_CYCLES, (u8)MAX_CYCLES);
-
-	/* start at 0 */
-	twl_i2c_write_u8(TWL4030_MODULE_PWM1, 0, 0);
-	twl_i2c_write_u8(TWL4030_MODULE_PWM1, pwm_off, 1);
-}
-
-static void encore_pwm_enable(int enable)
-{
-	u8 gpbr1;
-
-	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &gpbr1, REG_INTBR_GPBR1);
-	gpbr1 &= ~REG_INTBR_GPBR1_PWM1_OUT_EN_MASK;
-	gpbr1 |= (enable ? REG_INTBR_GPBR1_PWM1_OUT_EN : 0);
-	twl_i2c_write_u8(TWL4030_MODULE_INTBR, gpbr1, REG_INTBR_GPBR1);
-
-	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &gpbr1, REG_INTBR_GPBR1);
-	gpbr1 &= ~REG_INTBR_GPBR1_PWM1_CLK_EN_MASK;
-	gpbr1 |= (enable ? REG_INTBR_GPBR1_PWM1_CLK_EN : 0);
-	twl_i2c_write_u8(TWL4030_MODULE_INTBR, gpbr1, REG_INTBR_GPBR1);
-}
-
-static void encore_set_primary_brightness(u8 brightness)
-{
-	u8 pmbr1;
-	static int encore_pwm1_config;
-	static int encore_pwm1_output_enabled;
-
-	if (encore_pwm1_config == 0) {
-		twl_i2c_read_u8(TWL4030_MODULE_INTBR, &pmbr1, REG_INTBR_PMBR1);
-
-		pmbr1 &= ~REG_INTBR_PMBR1_PWM1_PIN_MASK;
-		pmbr1 |=  REG_INTBR_PMBR1_PWM1_PIN_EN;
-		twl_i2c_write_u8(TWL4030_MODULE_INTBR, pmbr1, REG_INTBR_PMBR1);
-
-		encore_pwm1_config = 1;
-	}
-
-	if (!brightness) {
-		encore_pwm_enable(0);
-		encore_pwm1_output_enabled = 0;
-		return;
-	}
-
-	encore_pwm_config(brightness);
-	if (encore_pwm1_output_enabled == 0) {
-		encore_pwm_enable(1);
-		encore_pwm1_output_enabled = 1;
-	}
-}
-
-static struct omap4430_sdp_disp_led_platform_data encore_disp_led_data = {
-	.flags = LEDS_CTRL_AS_ONE_DISPLAY,
-	.primary_display_set = encore_set_primary_brightness,
-	.secondary_display_set = NULL,
-};
-
-
-static struct platform_device encore_disp_led = {
-	.name   =       "display_led",
-	.id     =       -1,
-	.dev    = {
-		.platform_data = &encore_disp_led_data,
-	},
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -526,34 +436,6 @@ static struct twl4030_platform_data encore_twldata = {
 	.vdac		= &encore_vdac,
 };
 
-static void synaptics_dev_init(void)
-{
-	/* Set the ts_gpio pin mux */
-	omap_mux_init_signal("gpio_163", OMAP_PIN_INPUT_PULLUP);
-
-	if (gpio_request(OMAP_SYNAPTICS_GPIO, "touch") < 0) {
-		printk(KERN_ERR "can't get synaptics pen down GPIO\n");
-		return;
-	}
-	gpio_direction_input(OMAP_SYNAPTICS_GPIO);
-	gpio_set_debounce(OMAP_SYNAPTICS_GPIO, 310);
-}
-
-static int synaptics_power(int power_state)
-{
-	/* TODO: synaptics is powered by vbatt */
-	return 0;
-}
-
-static struct synaptics_i2c_rmi_platform_data synaptics_platform_data[] = {
-	{
-		.version        = 0x0,
-		.power          = &synaptics_power,
-		.flags          = SYNAPTICS_SWAP_XY,
-		.irqflags       = IRQF_TRIGGER_LOW,
-	}
-};
-
 static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 	{
 		I2C_BOARD_INFO(CY_I2C_NAME, CYTTSP_I2C_SLAVEADDRESS),
@@ -566,24 +448,6 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 		.irq = OMAP_GPIO_IRQ(OMAP_FT5x06_GPIO),
 	},	
 
-#if 0
-
-#if (defined(CONFIG_VIDEO_IMX046) || defined(CONFIG_VIDEO_IMX046_MODULE)) && \
-	defined(CONFIG_VIDEO_OMAP3)
-	{
-		I2C_BOARD_INFO(IMX046_NAME, IMX046_I2C_ADDR),
-		.platform_data = &encore_imx046_platform_data,
-	},
-#endif
-#if (defined(CONFIG_VIDEO_LV8093) || defined(CONFIG_VIDEO_LV8093_MODULE)) && \
-	defined(CONFIG_VIDEO_OMAP3)
-	{
-		I2C_BOARD_INFO(LV8093_NAME,  LV8093_AF_I2C_ADDR),
-		.platform_data = &encore_lv8093_platform_data,
-	},
-#endif
-
-#endif
 };
 
 static int __init omap_i2c_init(void)
@@ -609,9 +473,7 @@ void __init zoom_peripherals_init(void)
 		ARRAY_SIZE(encore_board_devices));
 	twl4030_get_scripts(&encore_t2scripts_data);
 	omap_i2c_init();
-	synaptics_dev_init();
 	platform_device_register(&omap_vwlan_device);
-	platform_device_register(&encore_disp_led);
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
