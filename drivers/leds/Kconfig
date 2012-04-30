@@ -369,6 +369,13 @@ config LEDS_MC13783
 	  This option enable support for on-chip LED drivers found
 	  on Freescale Semiconductor MC13783 PMIC.
 
+config LEDS_OMAP_PWM
+	tristate "LED Support for OMAP PWM-controlled LEDs"
+	depends on LEDS_CLASS && ARCH_OMAP && OMAP_DM_TIMER
+	help
+	  This options enables support for LEDs connected to GPIO lines
+	  controlled by a PWM timer on OMAP CPUs.
+
 config LEDS_OMAP4430_SDP_DISPLAY
 	bool "Display LED support for OMAP4430 SDP"
 	depends on LEDS_CLASS

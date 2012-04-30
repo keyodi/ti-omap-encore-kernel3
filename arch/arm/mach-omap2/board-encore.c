@@ -29,7 +29,7 @@
 #include <plat/board.h>
 #include <plat/usb.h>
 
-#include <mach/board-zoom.h>
+#include <mach/board-encore.h>
 
 #include "board-flash.h"
 #include "mux.h"
@@ -179,7 +179,7 @@ static void __init omap_zoom_init(void)
 	//zoom3_wifi_init();
 	zoom_debugboard_init();
 	zoom_peripherals_init();
-	zoom_display_init();
+	encore_display_init();
 	omap_register_ion();
 	/* Added to register zoom devices */
 	//platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));

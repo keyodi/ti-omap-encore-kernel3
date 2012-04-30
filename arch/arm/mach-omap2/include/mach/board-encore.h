@@ -5,7 +5,7 @@
 
 extern int __init zoom_debugboard_init(void);
 extern void __init zoom_peripherals_init(void);
-extern void __init zoom_display_init(void);
+extern void __init encore_display_init(void);
 
 #define BOARD_ENCORE_REV_EVT1A      0x1
 #define BOARD_ENCORE_REV_EVT1B      0x2

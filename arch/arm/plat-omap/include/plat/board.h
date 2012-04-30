@@ -118,7 +118,9 @@ struct omap_pwm_led_platform_data {
 	const char *name;
 	int intensity_timer;
 	int blink_timer;
+	int def_on;
 	void (*set_power)(struct omap_pwm_led_platform_data *self, int on_off);
+	int def_brightness;
 };
 
 struct omap_uart_config {
