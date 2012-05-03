@@ -260,9 +260,7 @@ obj-$(CONFIG_MACH_OMAP_ZOOM3)		+= board-zoom.o \
 obj-$(CONFIG_MACH_ENCORE)		+= board-encore.o \
 					   board-encore-peripherals.o \
 					   board-encore-display.o \
-					   board-flash.o \
 					   hsmmc.o \
-					   board-encore-debugboard.o \
 					   omapxx_apps_brd_id.o
 obj-$(CONFIG_MACH_OMAP_3630SDP)		+= board-3630sdp.o \
 					   board-zoom-peripherals.o \

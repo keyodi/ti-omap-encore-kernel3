@@ -31,7 +31,6 @@
 
 #include <mach/board-encore.h>
 
-#include "board-flash.h"
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 #include "omap_ion.h"
@@ -177,7 +176,6 @@ static void __init omap_zoom_init(void)
 	usbhs_init(&usbhs_bdata);
 
 	//zoom3_wifi_init();
-	zoom_debugboard_init();
 	zoom_peripherals_init();
 	encore_display_init();
 	omap_register_ion();

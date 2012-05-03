@@ -673,8 +673,7 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 
 static int __init omap_i2c_init(void)
 {
-	//omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &encore_twldata);
-	omap3_pmic_init("twl4030", &encore_twldata);
+	omap_pmic_init(1, 400, "tps65921", INT_34XX_SYS_NIRQ, &encore_twldata);
 	omap_register_i2c_bus(1, 100, encore_i2c_boardinfo,
 			ARRAY_SIZE(encore_i2c_boardinfo));
 	omap_register_i2c_bus(2, 400, encore_i2c_bus2_info,
@@ -716,7 +715,7 @@ void __init zoom_peripherals_init(void)
 	twl4030_get_scripts(&encore_t2scripts_data);
 	encore_board_init();
 	omap_i2c_init();
-	platform_device_register(&omap_vwlan_device);
+	//platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
