@@ -20,8 +20,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
 #include <linux/mmc/host.h>
-
-#include <media/v4l2-int-device.h>
+#include <linux/switch.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -29,7 +28,8 @@
 
 #include <plat/common.h>
 #include <plat/usb.h>
-#include <linux/switch.h>
+#include <plat/mmc.h>
+
 #include <mach/board-encore.h>
 
 #include <linux/input/cyttsp.h>
@@ -512,12 +512,14 @@ static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.board_ref_clock = 1,
 };
 
-static struct omap2_hsmmc_info mmc[] = {
+/* The order is reverted in this table so that internal eMMC is presented
+ * as first mmc card for compatibility with existing android installations */
+static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
-		.gpio_wp	= -EINVAL,
+		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
 #ifdef CONFIG_PM_RUNTIME
@@ -535,15 +537,74 @@ static struct omap2_hsmmc_info mmc[] = {
 #endif
 	},
 	{
-		.name		= "wl1271",
+		.name		= "internal",
 		.mmc		= 3,
-		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
-		.gpio_wp	= -EINVAL,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
-		.nonremovable	= true,
+		.gpio_wp	= -EINVAL,
 	},
 	{}      /* Terminator */
 };
+
+static int encore_hsmmc_card_detect(struct device *dev, int slot)
+{
+	struct omap_mmc_platform_data *mmc = dev->platform_data;
+
+	/* Encore board EVT2 and later has pin high when card is present) */
+	return gpio_get_value_cansleep(mmc->slots[0].switch_pin);
+}
+
+static int encore_twl4030_hsmmc_late_init(struct device *dev)
+{
+        int ret = 0;
+        struct platform_device *pdev = container_of(dev,
+                                struct platform_device, dev);
+        struct omap_mmc_platform_data *pdata = dev->platform_data;
+
+	if(is_encore_board_evt2()) {
+		/* Setting MMC1 (external) Card detect */
+		if (pdev->id == 0) {
+			pdata->slots[0].card_detect = encore_hsmmc_card_detect;
+		}
+	}
+        return ret;
+}
+
+static __init void encore_hsmmc_set_late_init(struct device *dev)
+{
+	struct omap_mmc_platform_data *pdata;
+
+	/* dev can be null if CONFIG_MMC_OMAP_HS is not set */
+	if (!dev)
+		return;
+
+	pdata = dev->platform_data;
+	pdata->init = encore_twl4030_hsmmc_late_init;
+}
+
+static int encore_twl_gpio_setup(struct device *dev,
+		unsigned gpio, unsigned ngpio)
+{
+struct omap2_hsmmc_info *c;
+	/* gpio + 0 is "mmc0_cd" (input/IRQ),
+	 * gpio + 1 is "mmc1_cd" (input/IRQ)
+	 */
+printk("******IN boxer_twl_gpio_setup********\n");
+	mmc[1].gpio_cd = gpio + 0;
+	mmc[0].gpio_cd = gpio + 1;
+	omap2_hsmmc_init(mmc);
+	for (c = mmc; c->mmc; c++)
+                encore_hsmmc_set_late_init(c->dev);
+
+	/* link regulators to MMC adapters ... we "know" the
+	 * regulators will be set up only *after* we return.
+	*/
+	encore_vmmc1_supply.dev = mmc[1].dev;
+	encore_vsim_supply.dev = mmc[1].dev;
+	encore_vmmc2_supply.dev = mmc[0].dev;
+
+	return 0;
+}
 
 static struct regulator_consumer_supply encore_vpll2_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
@@ -578,23 +639,6 @@ static struct regulator_init_data encore_vdac = {
 	.num_consumer_supplies		= 1,
 	.consumer_supplies		= &encore_vdda_dac_supply,
 };
-
-static int encore_twl_gpio_setup(struct device *dev,
-		unsigned gpio, unsigned ngpio)
-{
-	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
-
-	/* link regulators to MMC adapters ... we "know" the
-	 * regulators will be set up only *after* we return.
-	*/
-	encore_vmmc1_supply.dev = mmc[0].dev;
-	encore_vsim_supply.dev = mmc[0].dev;
-	encore_vmmc2_supply.dev = mmc[1].dev;
-
-	return 0;
-}
 
 static struct twl4030_usb_data encore_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
