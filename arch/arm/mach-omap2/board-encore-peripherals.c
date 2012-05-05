@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2009 Texas Instruments Inc.
  *
- * Modified from mach-omap2/board-encore.c
+ * Modified from mach-omap2/board-zoom.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -55,25 +55,25 @@
 #define OMAP_FT5x06_GPIO         99
 #define OMAP_FT5x06_RESET_GPIO   46
 
+#define MAX17042_GPIO_FOR_IRQ  65
+#define KXTF9_GPIO_FOR_IRQ  66
+
 #define OMAP_encore_WLAN_PMENA_GPIO	(101)
 #define OMAP_encore_WLAN_IRQ_GPIO		(162)
-
-static int max17042_gpio_for_irq = 0;
-static int kxtf9_gpio_for_irq = 0;
 
 #ifdef CONFIG_BATTERY_MAX17042
 static void max17042_dev_init(void)
 {
 	printk("board-3621_evt1a.c: max17042_dev_init ...\n");
 
-	if (gpio_request(max17042_gpio_for_irq, "max17042_irq") < 0) {
+	if (gpio_request(MAX17042_GPIO_FOR_IRQ, "max17042_irq") < 0) {
 		printk(KERN_ERR "Can't get GPIO for max17042 IRQ\n");
 		return;
 	}
 
-	printk("board-3621_evt1a.c: max17042_dev_init > Init max17042 irq pin %d !\n", max17042_gpio_for_irq);
-	gpio_direction_input(max17042_gpio_for_irq);
-	printk("max17042 GPIO pin read %d\n", gpio_get_value(max17042_gpio_for_irq));
+	printk("board-3621_evt1a.c: max17042_dev_init > Init max17042 irq pin %d !\n", MAX17042_GPIO_FOR_IRQ);
+	gpio_direction_input(MAX17042_GPIO_FOR_IRQ);
+	printk("max17042 GPIO pin read %d\n", gpio_get_value(MAX17042_GPIO_FOR_IRQ));
 }
 #endif
 
@@ -81,15 +81,15 @@ static void kxtf9_dev_init(void)
 {
 	printk("board-3621_evt1a.c: kxtf9_dev_init ...\n");
 
-	if (gpio_request(kxtf9_gpio_for_irq, "kxtf9_irq") < 0)
+	if (gpio_request(KXTF9_GPIO_FOR_IRQ, "kxtf9_irq") < 0)
 	{
 		printk("Can't get GPIO for kxtf9 IRQ\n");
 		return;
 	}
 
 	printk("board-3621_evt1a.c: kxtf9_dev_init > Init kxtf9 irq pin %d !\n",
-			kxtf9_gpio_for_irq);
-	gpio_direction_input(kxtf9_gpio_for_irq);
+			KXTF9_GPIO_FOR_IRQ);
+	gpio_direction_input(KXTF9_GPIO_FOR_IRQ);
 }
 
 
@@ -125,7 +125,7 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 	.tdt_latency_timer_init = 0x10,
 	.tdt_window_timer_init  = 0xA0,
 
-	.gpio = 0,
+	.gpio = KXTF9_GPIO_FOR_IRQ,
 };
 
 int  ft5x06_dev_init(int resource)
@@ -351,8 +351,42 @@ static struct fixed_voltage_config encore_vwlan = {
 	.init_data		= &encore_vmmc3,
 };
 
+static struct regulator_consumer_supply encore_lcd_tp_supply[] = {
+	{ .supply = "vtp" },
+	{ .supply = "vlcd" },
+};
+
+static struct regulator_init_data encore_lcd_tp_vinit = {
+    .constraints = {
+        .min_uV = 3300000,
+        .max_uV = 3300000,
+        .valid_modes_mask = REGULATOR_MODE_NORMAL,
+        .valid_ops_mask = REGULATOR_CHANGE_STATUS,
+    },
+    .num_consumer_supplies = 2,
+    .consumer_supplies = encore_lcd_tp_supply,
+};
+
+static struct fixed_voltage_config encore_lcd_touch_reg_data = {
+    .supply_name = "vdd_lcdtp",
+    .microvolts = 3300000,
+    .gpio = 36,
+    .enable_high = 1,
+    .enabled_at_boot = 0,
+    .init_data = &encore_lcd_tp_vinit,
+};
+
+static struct platform_device encore_lcd_touch_regulator_device = {
+    .name   = "reg-fixed-voltage",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &encore_lcd_touch_reg_data,
+    },
+};
+
 static struct platform_device *encore_board_devices[] __initdata = {
 	&encore_keys_gpio,
+	&encore_lcd_touch_regulator_device,
 };
 
 static struct platform_device omap_vwlan_device = {
@@ -506,6 +540,14 @@ static inline void max8903_charger_init(void)
 
 #endif
 
+#ifdef CONFIG_BATTERY_MAX17042
+struct max17042_platform_data max17042_platform_data_here = {
+
+	.gpio = MAX17042_GPIO_FOR_IRQ,
+
+};
+#endif
+
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
 	.irq = OMAP_GPIO_IRQ(OMAP_encore_WLAN_IRQ_GPIO),
 	/* encore ref clock is 26 MHz */
@@ -536,13 +578,16 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.power_saving	= true,
 #endif
 	},
+/*
 	{
 		.name		= "internal",
 		.mmc		= 3,
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
+		.nonremovable	= true,
 	},
+*/
 	{}      /* Terminator */
 };
 
@@ -672,7 +717,7 @@ static struct twl4030_platform_data encore_twldata = {
 	.gpio		= &encore_gpio_data,
 	.keypad		= &encore_kp_twl4030_data,
 	.power		= &encore_t2scripts_data,
-	.codec		= &encore_codec_data,
+	//.codec		= &encore_codec_data,
 	.vmmc1          = &encore_vmmc1,
 	.vmmc2          = &encore_vmmc2,
 	.vsim           = &encore_vsim,
@@ -680,23 +725,16 @@ static struct twl4030_platform_data encore_twldata = {
 	.vdac		= &encore_vdac,
 };
 
-#ifdef CONFIG_BATTERY_MAX17042
-struct max17042_platform_data max17042_platform_data_here = {
-
-	.gpio = 0,
-};
-#endif
-
 static struct i2c_board_info __initdata encore_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO(KXTF9_DEVICE_ID, KXTF9_I2C_SLAVE_ADDRESS),
 		.platform_data = &kxtf9_platform_data_here,
-		.irq = 0,
+		.irq = OMAP_GPIO_IRQ(66),
 	},
 	{
 		I2C_BOARD_INFO(MAX17042_DEVICE_ID, MAX17042_I2C_SLAVE_ADDRESS),
 		.platform_data = &max17042_platform_data_here,
-		.irq = 0,
+		.irq = OMAP_GPIO_IRQ(65),
 	},
 
 };
@@ -717,11 +755,17 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 
 static int __init omap_i2c_init(void)
 {
+	int err;	
+
 	omap_pmic_init(1, 400, "tps65921", INT_34XX_SYS_NIRQ, &encore_twldata);
-	omap_register_i2c_bus(1, 100, encore_i2c_boardinfo,
-			ARRAY_SIZE(encore_i2c_boardinfo));
+
+	err=i2c_register_board_info(1,encore_i2c_boardinfo, ARRAY_SIZE(encore_i2c_boardinfo));
+	if (err)
+	  return err;
+
 	omap_register_i2c_bus(2, 400, encore_i2c_bus2_info,
 			ARRAY_SIZE(encore_i2c_bus2_info));
+
 	return 0;
 }
 
@@ -732,32 +776,11 @@ static void enable_board_wakeup_source(void)
 		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
-void __init encore_board_init(void)
-{
-	const int board_type = encore_board_type();
-
-	if ( board_type == EVT1A ){
-		max17042_gpio_for_irq = 98;
-		kxtf9_gpio_for_irq = 99;
-	} else if ( board_type >= EVT1B ) {
-		max17042_gpio_for_irq = 65;
-		kxtf9_gpio_for_irq = 66;
-	}
-
-	max17042_platform_data_here.gpio = max17042_gpio_for_irq;
-	encore_i2c_boardinfo[1].irq = OMAP_GPIO_IRQ(max17042_gpio_for_irq);
-	kxtf9_platform_data_here.gpio = kxtf9_gpio_for_irq;
-	encore_i2c_boardinfo[0].irq = OMAP_GPIO_IRQ(kxtf9_gpio_for_irq);
-	omap_mux_init_signal("sys_pwron_reset_out", OMAP_MUX_MODE3);
-	omap_mux_init_signal("fref_clk3_req", OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN);
-}
-
 void __init zoom_peripherals_init(void)
 {
 	platform_add_devices(encore_board_devices,
 		ARRAY_SIZE(encore_board_devices));
 	twl4030_get_scripts(&encore_t2scripts_data);
-	encore_board_init();
 	omap_i2c_init();
 	//platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
