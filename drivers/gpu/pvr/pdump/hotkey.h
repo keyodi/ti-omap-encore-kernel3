@@ -24,17 +24,37 @@
  *
  ******************************************************************************/
 
-#if !defined(__SYSINFO_H__)
-#define __SYSINFO_H__
+#ifndef _HOTKEY_
+#define _HOTKEY_
 
-#if defined(PVR_LINUX_USING_WORKQUEUES)
-#define MAX_HW_TIME_US				(1000000)
-#else
-#define MAX_HW_TIME_US				(500000)
+
+typedef struct _hotkeyinfo
+{
+	IMG_UINT8 ui8ScanCode;
+	IMG_UINT8 ui8Type;
+	IMG_UINT8 ui8Flag;
+	IMG_UINT8 ui8Filler1;
+	IMG_UINT32 ui32ShiftState;
+	IMG_UINT32 ui32HotKeyProc;
+	IMG_VOID *pvStream;
+	IMG_UINT32 hHotKey;
+} HOTKEYINFO, *PHOTKEYINFO;
+
+typedef struct _privatehotkeydata
+{
+	IMG_UINT32		ui32ScanCode;
+	IMG_UINT32		ui32ShiftState;
+	HOTKEYINFO	sHotKeyInfo;
+} PRIVATEHOTKEYDATA, *PPRIVATEHOTKEYDATA;
+
+
+IMG_VOID ReadInHotKeys (IMG_VOID);
+IMG_VOID ActivateHotKeys(PDBG_STREAM psStream);
+IMG_VOID DeactivateHotKeys(IMG_VOID);
+
+IMG_VOID RemoveHotKey (IMG_UINT32 hHotKey);
+IMG_VOID DefineHotKey (IMG_UINT32 ui32ScanCode, IMG_UINT32 ui32ShiftState, PHOTKEYINFO psInfo);
+IMG_VOID RegisterKeyPressed (IMG_UINT32 ui32ScanCode, PHOTKEYINFO psInfo);
+
 #endif
 
-#define WAIT_TRY_COUNT				(10000)
-
-#define SYS_DEVICE_COUNT 3
-
-#endif
