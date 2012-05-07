@@ -103,10 +103,10 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 	// Map the axes from the sensor to the device.
 
 	//. SETTINGS FOR THE EVT1A:
-	.axis_map_x     = 0,
-	.axis_map_y     = 1,
+	.axis_map_x     = 1,
+	.axis_map_y     = 0,
 	.axis_map_z     = 2,
-	.negate_x       = 0,
+	.negate_x       = 1,
 	.negate_y       = 0,
 	.negate_z       = 0,
 	.data_odr_init          = ODR12_5F,
