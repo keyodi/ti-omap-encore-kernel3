@@ -158,7 +158,7 @@ int  ft5x06_dev_init(int resource)
 static struct ft5x06_platform_data ft5x06_platform_data = {
     .maxx = 1024,
     .maxy = 600,
-    .flags = FLIP_DATA_FLAG | REVERSE_Y_FLAG | REVERSE_X_FLAG,
+    .flags = 0,
     .reset_gpio = OMAP_FT5x06_RESET_GPIO,
     .use_st = FT_USE_ST,
     .use_mt = FT_USE_MT,
@@ -194,7 +194,7 @@ int  cyttsp_dev_init(int resource)
 static struct cyttsp_platform_data cyttsp_platform_data = {
         .maxx = 480,
         .maxy = 800,
-        .flags = FLIP_DATA_FLAG | REVERSE_Y_FLAG,
+        .flags = 0,
         .gen = CY_GEN3,
         .use_st = CY_USE_ST,
         .use_mt = CY_USE_MT,
