@@ -43,8 +43,10 @@ static void boxer_backlight_set_power(struct omap_pwm_led_platform_data *self, i
 static struct omap_pwm_led_platform_data boxer_backlight_data = {
 	.name            = "lcd-backlight",
 	.intensity_timer = 8,
-	.def_on          = 0,   // PWM high == backlight OFF, PWM low == backlight ON
-	.def_brightness  = DEFAULT_BACKLIGHT_BRIGHTNESS,
+	.bkl_max    = 254,
+	.bkl_min    = 0,
+	.bkl_freq    = 128,
+	.invert     = 1,
 	.set_power       = boxer_backlight_set_power,
 };
 
@@ -59,7 +61,7 @@ static struct platform_device boxer_backlight_led_device = {
 static void __init boxer_backlight_init(void)
 {
         printk("Enabling backlight PWM for LCD\n");
-        boxer_backlight_data.def_on = 1; // change the PWM polarity
+        //boxer_backlight_data.def_on = 1; // change the PWM polarity
 
         gpio_request(LCD_BACKLIGHT_EN_EVT2, "lcd backlight evt2");
 
