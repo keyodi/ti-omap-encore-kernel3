@@ -34,6 +34,7 @@
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 #include "omap_ion.h"
+#include "timer-gp.h"
 
 #define ZOOM3_EHCI_RESET_GPIO		64
 #define ZOOM3_McBSP3_BT_GPIO            164
@@ -48,6 +49,9 @@ static void __init omap_zoom_init_early(void)
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
 				h8mbx00u0mer0em_sdrc_params);
+#ifdef CONFIG_OMAP_32K_TIMER
+	omap2_gp_clockevent_set_gptimer(1);
+#endif
 }
 
 #ifdef CONFIG_OMAP_MUX

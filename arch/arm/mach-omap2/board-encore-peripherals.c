@@ -47,19 +47,19 @@
 #define KXTF9_I2C_SLAVE_ADDRESS         0x0F
 #define KXTF9_GPIO_FOR_PWR              34
 
-#define CYTTSP_I2C_SLAVEADDRESS  34
-#define OMAP_CYTTSP_GPIO         99
-#define OMAP_CYTTSP_RESET_GPIO   46
+#define CYTTSP_I2C_SLAVEADDRESS  	34
+#define OMAP_CYTTSP_GPIO         	99
+#define OMAP_CYTTSP_RESET_GPIO   	46
 
-#define FT5x06_I2C_SLAVEADDRESS  (0x70 >> 1)
-#define OMAP_FT5x06_GPIO         99
-#define OMAP_FT5x06_RESET_GPIO   46
+#define FT5x06_I2C_SLAVEADDRESS  	(0x70 >> 1)
+#define OMAP_FT5x06_GPIO         	99
+#define OMAP_FT5x06_RESET_GPIO   	46
 
-#define MAX17042_GPIO_FOR_IRQ  65
-#define KXTF9_GPIO_FOR_IRQ  66
+#define MAX17042_GPIO_FOR_IRQ 		100
+#define KXTF9_GPIO_FOR_IRQ  		113
 
 #define OMAP_encore_WLAN_PMENA_GPIO	(101)
-#define OMAP_encore_WLAN_IRQ_GPIO		(162)
+#define OMAP_encore_WLAN_IRQ_GPIO	(162)
 
 #ifdef CONFIG_BATTERY_MAX17042
 static void max17042_dev_init(void)
@@ -128,67 +128,67 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 	.gpio = KXTF9_GPIO_FOR_IRQ,
 };
 
-int  ft5x06_dev_init(int resource)
+int ft5x06_dev_init(int resource)
 {
-    if (resource)
-    {
-        if (gpio_request(OMAP_FT5x06_RESET_GPIO, "ft5x06_reset") < 0)
-        {
-            printk(KERN_ERR "can't get ft5x06 xreset GPIO\n");
-            return -1;
-        }
+	if (resource){
+		omap_mux_init_signal("cam_d0.gpio_99", OMAP_PIN_INPUT | OMAP_PIN_OFF_WAKEUPENABLE);
+		omap_mux_init_signal("gpmc_d10.gpio_46", OMAP_PIN_OUTPUT );
 
-        if (gpio_request(OMAP_FT5x06_GPIO, "ft5x06_touch") < 0)
-        {
-            printk(KERN_ERR "can't get ft5x06 interrupt GPIO\n");
-            return -1;
-        }
+		if (gpio_request(OMAP_FT5x06_RESET_GPIO, "ft5x06_reset") < 0){
+			printk(KERN_ERR "can't get ft5x06 xreset GPIO\n");
+			return -1;
+		}
 
-        gpio_direction_input(OMAP_FT5x06_GPIO);
-    }
-    else
-    {
-        gpio_free(OMAP_FT5x06_GPIO);
-        gpio_free(OMAP_FT5x06_RESET_GPIO);
-    }
+		if (gpio_request(OMAP_FT5x06_GPIO, "ft5x06_touch") < 0) {
+			printk(KERN_ERR "can't get ft5x06 interrupt GPIO\n");
+			return -1;
+		}
 
-    return 0;
+		gpio_direction_input(OMAP_FT5x06_GPIO);
+	} else {
+		gpio_free(OMAP_FT5x06_GPIO);
+		gpio_free(OMAP_FT5x06_RESET_GPIO);
+	}
+
+	return 0;
 }
 
 static struct ft5x06_platform_data ft5x06_platform_data = {
-    .maxx = 1024,
-    .maxy = 600,
-    .flags = 0,
-    .reset_gpio = OMAP_FT5x06_RESET_GPIO,
-    .use_st = FT_USE_ST,
-    .use_mt = FT_USE_MT,
-    .use_trk_id = 1, //FT_USE_TRACKING_ID,
-    .use_sleep = FT_USE_SLEEP,
-    .use_gestures = 0,
+	.maxx = 1024,
+	.maxy = 600,
+	.flags = 0,
+	.reset_gpio = OMAP_FT5x06_RESET_GPIO,
+	.use_st = FT_USE_ST,
+	.use_mt = FT_USE_MT,
+	.use_trk_id = 1, //FT_USE_TRACKING_ID,
+	.use_sleep = FT_USE_SLEEP,
+	.use_gestures = 0,
 };
 
-int  cyttsp_dev_init(int resource)
+int cyttsp_dev_init(int resource)
 {
-        if (resource)
-        {
-                if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
-                        printk(KERN_ERR "can't get tma340 xreset GPIO\n");
-                        return -1;
-                }
+	if (resource) {
+		omap_mux_init_signal("cam_d0.gpio_99", OMAP_PIN_INPUT | OMAP_PIN_OFF_WAKEUPENABLE);
+		omap_mux_init_signal("gpmc_d10.gpio_46", OMAP_PIN_OUTPUT );
 
-                if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
-                        printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
-                        return -1;
-                }
+		if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
+			printk(KERN_ERR "can't get tma340 xreset GPIO\n");
+			return -1;
+		}
 
-                gpio_direction_input(OMAP_CYTTSP_GPIO);
-        }
-        else
-        {
-                gpio_free(OMAP_CYTTSP_GPIO);
-                gpio_free(OMAP_CYTTSP_RESET_GPIO);
-        }
-    return 0;
+		if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
+			printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
+			return -1;
+		}
+
+		gpio_direction_input(OMAP_CYTTSP_GPIO);
+		/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
+	} else {
+		printk ("\n%s: Free resources",__FUNCTION__);
+		gpio_free(OMAP_CYTTSP_GPIO);
+		gpio_free(OMAP_CYTTSP_RESET_GPIO);
+	}
+	return 0;
 }
 
 static struct cyttsp_platform_data cyttsp_platform_data = {
@@ -357,31 +357,31 @@ static struct regulator_consumer_supply encore_lcd_tp_supply[] = {
 };
 
 static struct regulator_init_data encore_lcd_tp_vinit = {
-    .constraints = {
-        .min_uV = 3300000,
-        .max_uV = 3300000,
-        .valid_modes_mask = REGULATOR_MODE_NORMAL,
-        .valid_ops_mask = REGULATOR_CHANGE_STATUS,
-    },
-    .num_consumer_supplies = 2,
-    .consumer_supplies = encore_lcd_tp_supply,
+	.constraints = {
+		.min_uV = 3300000,
+		.max_uV = 3300000,
+		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = 2,
+	.consumer_supplies = encore_lcd_tp_supply,
 };
 
 static struct fixed_voltage_config encore_lcd_touch_reg_data = {
-    .supply_name = "vdd_lcdtp",
-    .microvolts = 3300000,
-    .gpio = 36,
-    .enable_high = 1,
-    .enabled_at_boot = 0,
-    .init_data = &encore_lcd_tp_vinit,
+	.supply_name = "vdd_lcdtp",
+	.microvolts = 3300000,
+	.gpio = 36,
+	.enable_high = 1,
+	.enabled_at_boot = 0,
+	.init_data = &encore_lcd_tp_vinit,
 };
 
 static struct platform_device encore_lcd_touch_regulator_device = {
-    .name   = "reg-fixed-voltage",
-    .id     = -1,
-    .dev    = {
-        .platform_data = &encore_lcd_touch_reg_data,
-    },
+	.name   = "reg-fixed-voltage",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &encore_lcd_touch_reg_data,
+	},
 };
 
 static struct platform_device *encore_board_devices[] __initdata = {
@@ -572,7 +572,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.name		= "external",
 		.mmc		= 1,
 		.caps		= MMC_CAP_4_BIT_DATA,
-		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 #ifdef CONFIG_PM_RUNTIME
 		.power_saving	= true,
@@ -729,12 +728,12 @@ static struct i2c_board_info __initdata encore_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO(KXTF9_DEVICE_ID, KXTF9_I2C_SLAVE_ADDRESS),
 		.platform_data = &kxtf9_platform_data_here,
-		.irq = OMAP_GPIO_IRQ(66),
+		.irq = OMAP_GPIO_IRQ(KXTF9_GPIO_FOR_IRQ),
 	},
 	{
 		I2C_BOARD_INFO(MAX17042_DEVICE_ID, MAX17042_I2C_SLAVE_ADDRESS),
 		.platform_data = &max17042_platform_data_here,
-		.irq = OMAP_GPIO_IRQ(65),
+		.irq = OMAP_GPIO_IRQ(MAX17042_GPIO_FOR_IRQ),
 	},
 
 };
@@ -757,7 +756,7 @@ static int __init omap_i2c_init(void)
 {
 	int err;	
 
-	omap_pmic_init(1, 400, "tps65921", INT_34XX_SYS_NIRQ, &encore_twldata);
+	omap_pmic_init(1, 100, "tps65921", INT_34XX_SYS_NIRQ, &encore_twldata);
 
 	err=i2c_register_board_info(1,encore_i2c_boardinfo, ARRAY_SIZE(encore_i2c_boardinfo));
 	if (err)

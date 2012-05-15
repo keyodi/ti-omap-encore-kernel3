@@ -16,7 +16,7 @@ config CAIF_HSI_OMAP
 config CAIF_PHY_SPI
 	tristate "CAIF SPI OMAP driver"
 	default n
-	depends on MACH_OMAP_ZOOM2 || MACH_OMAP_ZOOM3 || MACH_ENCORE
+	depends on MACH_OMAP_ZOOM2 || MACH_OMAP_ZOOM3
 	---help---
 	The CAIF SPI driver for the omap platform
 

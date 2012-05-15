@@ -166,7 +166,7 @@ static struct map_desc omap34xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE
 	},
 #if defined(CONFIG_DEBUG_LL) &&							\
-	(defined(CONFIG_MACH_OMAP_ZOOM2) || defined(CONFIG_MACH_OMAP_ZOOM3) || defined(CONFIG_MACH_ENCORE))
+	(defined(CONFIG_MACH_OMAP_ZOOM2) || defined(CONFIG_MACH_OMAP_ZOOM3))
 	{
 		.virtual	= ZOOM_UART_VIRT,
 		.pfn		= __phys_to_pfn(ZOOM_UART_BASE),
