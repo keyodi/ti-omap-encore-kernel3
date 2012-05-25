@@ -26,7 +26,7 @@
 
 #define MAX8903_UOK_GPIO_FOR_IRQ       82
 #define MAX8903_DOK_GPIO_FOR_IRQ       81
-#define MAX8903_GPIO_CHG_EN            60
+#define MAX8903_GPIO_CHG_EN            61
 #define MAX8903_GPIO_CHG_FLT           62
 #define MAX8903_GPIO_CHG_IUSB          83
 

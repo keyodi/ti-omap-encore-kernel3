@@ -577,7 +577,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.power_saving	= true,
 #endif
 	},
-/*
+
 	{
 		.name		= "internal",
 		.mmc		= 3,
@@ -586,7 +586,7 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
 	},
-*/
+
 	{}      /* Terminator */
 };
 
@@ -781,7 +781,7 @@ void __init zoom_peripherals_init(void)
 		ARRAY_SIZE(encore_board_devices));
 	twl4030_get_scripts(&encore_t2scripts_data);
 	omap_i2c_init();
-	//platform_device_register(&omap_vwlan_device);
+	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();

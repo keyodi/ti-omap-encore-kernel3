@@ -97,10 +97,10 @@ static int plat_kim_resume(struct platform_device *pdev)
 
 /* wl127x BT, FM, GPS connectivity chip */
 struct ti_st_plat_data wilink_pdata = {
-	.nshutdown_gpio = 109,
+	.nshutdown_gpio = 60,
 	.dev_name = WILINK_UART_DEV_NAME,
 	.flow_cntrl = 1,
-	.baud_rate = 3686400,
+	.baud_rate = 3000000,
 	.suspend = plat_kim_suspend,
 	.resume = plat_kim_resume,
 };
@@ -179,13 +179,13 @@ static void __init omap_zoom_init(void)
 	//omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
 	//usbhs_init(&usbhs_bdata);
 
-	//zoom3_wifi_init();
+	zoom3_wifi_init();
 	zoom_peripherals_init();
 	encore_display_init();
 	omap_register_ion();
 	/* Added to register zoom devices */
-	//platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
-	//wl127x_vio_leakage_fix();
+	platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
+	wl127x_vio_leakage_fix();
 }
 
 static void __init zoom_reserve(void)

@@ -272,6 +272,7 @@ config MACH_ENCORE
 	default y
 	select OMAP_PACKAGE_CBP
 	select REGULATOR_FIXED_VOLTAGE
+	select WLAN_POWER_EVT1
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
@@ -470,6 +471,13 @@ config OMAP4_ARM_ERRATA_743622
 	  This involves setting bit 6 of the CP15 diagnostic control register.
 	  This is handled for HS devices in the PPA code and does not need to be
 	  enabled."
+
+config WLAN_POWER_EVT1
+        bool "WLAN power support"
+        depends on MACH_ENCORE
+        default "y"
+        help
+	  Has to be set for B&N Encore board.
 
 endmenu
 
