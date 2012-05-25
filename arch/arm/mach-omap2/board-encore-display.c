@@ -44,9 +44,10 @@ static struct omap_pwm_led_platform_data boxer_backlight_data = {
 	.name            = "lcd-backlight",
 	.intensity_timer = 8,
 	.bkl_max    = 254,
-	.bkl_min    = 0,
+	.bkl_min    = 5,
 	.bkl_freq    = 128,
 	.invert     = 1,
+	.def_brightness	 = DEFAULT_BACKLIGHT_BRIGHTNESS,
 	.set_power       = boxer_backlight_set_power,
 };
 
