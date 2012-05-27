@@ -27,7 +27,7 @@
  *
  */
 
-#include "cyttsp_core.h"
+#include <linux/input/cyttsp_core.h>
 
 #include <linux/i2c.h>
 #include <linux/input.h>

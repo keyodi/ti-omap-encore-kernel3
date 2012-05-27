@@ -34,7 +34,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
-#include "cyttsp_core.h"
+#include <linux/input/cyttsp_core.h>
 
 /* Bootloader number of command keys */
 #define CY_NUM_BL_KEYS		8
@@ -311,8 +311,10 @@ static void cyttsp_report_tchdata(struct cyttsp *ts)
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
 		input_report_abs(input, ABS_MT_POSITION_X, be16_to_cpu(tch->x));
 		input_report_abs(input, ABS_MT_POSITION_Y, be16_to_cpu(tch->y));
+		input_report_abs(input, ABS_MT_PRESSURE, tch->z);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, tch->z);
-		input_report_key(ts->input, BTN_TOUCH, 1);
+		input_report_abs(input, ABS_MT_WIDTH_MAJOR, 20);
+		input_report_key(input, BTN_TOUCH, 1);
 
 		__set_bit(ids[i], used);
 	}
@@ -570,7 +572,11 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 			     0, pdata->maxx, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
 			     0, pdata->maxy, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_PRESSURE,
+			     0, CY_MAXZ, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
+			     0, CY_MAXZ, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR,
 			     0, CY_MAXZ, 0, 0);
 
 	input_mt_init_slots(input_dev, CY_MAX_ID);
