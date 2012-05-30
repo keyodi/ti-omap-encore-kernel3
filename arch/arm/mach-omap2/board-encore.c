@@ -38,7 +38,7 @@
 
 #define ZOOM3_EHCI_RESET_GPIO		64
 #define ZOOM3_McBSP3_BT_GPIO            164
-#define ZOOM3_BT_RESET_GPIO             109
+#define ENCORE_BT_RESET_GPIO            60
 #define ZOOM3_WIFI_PMENA_GPIO		22
 #define ZOOM3_WIFI_IRQ_GPIO		15
 
@@ -126,19 +126,19 @@ static int wl127x_vio_leakage_fix(void)
 
 	pr_info(" wl127x_vio_leakage_fix\n");
 
-	ret = gpio_request(ZOOM3_BT_RESET_GPIO, "wl127x_bten");
+	ret = gpio_request(ENCORE_BT_RESET_GPIO, "wl127x_bten");
 	if (ret < 0) {
 		pr_err("wl127x_bten gpio_%d request fail",
-			ZOOM3_BT_RESET_GPIO);
+			ENCORE_BT_RESET_GPIO);
 		goto fail;
 	}
 
-	gpio_direction_output(ZOOM3_BT_RESET_GPIO, 1);
+	gpio_direction_output(ENCORE_BT_RESET_GPIO, 1);
 	mdelay(10);
-	gpio_direction_output(ZOOM3_BT_RESET_GPIO, 0);
+	gpio_direction_output(ENCORE_BT_RESET_GPIO, 0);
 	udelay(64);
 
-	gpio_free(ZOOM3_BT_RESET_GPIO);
+	gpio_free(ENCORE_BT_RESET_GPIO);
 fail:
 	return ret;
 }
