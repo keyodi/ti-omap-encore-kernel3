@@ -58,7 +58,7 @@
 #define MAX17042_GPIO_FOR_IRQ 		100
 #define KXTF9_GPIO_FOR_IRQ  		113
 
-//#define OMAP_encore_WLAN_PMENA_GPIO	(101)
+#define OMAP_ENCORE_WLAN_PMENA_GPIO	22
 //#define OMAP_encore_WLAN_IRQ_GPIO	(162)
 
 #ifdef CONFIG_BATTERY_MAX17042
@@ -325,15 +325,15 @@ static struct regulator_init_data encore_vmmc3 = {
 	.consumer_supplies = &encore_vmmc3_supply,
 };
 
-//static struct fixed_voltage_config encore_vwlan = {
-//	.supply_name		= "vwl1271",
-//	.microvolts		= 1800000, /* 1.8V */
-//	.gpio			= OMAP_encore_WLAN_PMENA_GPIO,
-//	.startup_delay		= 70000, /* 70msec */
-//	.enable_high		= 1,
-//	.enabled_at_boot	= 0,
-//	.init_data		= &encore_vmmc3,
-//};*/
+static struct fixed_voltage_config encore_vwlan = {
+	.supply_name		= "vwl1271",
+	.microvolts		= 1800000, /* 1.8V */
+	.gpio			= OMAP_ENCORE_WLAN_PMENA_GPIO,
+	.startup_delay		= 70000, /* 70msec */
+	.enable_high		= 1,
+	.enabled_at_boot	= 0,
+	.init_data		= &encore_vmmc3,
+};
 
 static struct regulator_consumer_supply encore_lcd_tp_supply[] = {
 	{ .supply = "vtp" },
@@ -373,13 +373,13 @@ static struct platform_device *encore_board_devices[] __initdata = {
 	&encore_lcd_touch_regulator_device,
 };
 
-//static struct platform_device omap_vwlan_device = {
-//	.name		= "reg-fixed-voltage",
-//	.id		= 1,
-//	.dev = {
-//		.platform_data	= &encore_vwlan,
-//	},
-//};
+static struct platform_device omap_vwlan_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data	= &encore_vwlan,
+	},
+};
 
 #ifdef CONFIG_CHARGER_MAX8903
 
@@ -765,7 +765,7 @@ void __init zoom_peripherals_init(void)
 		ARRAY_SIZE(encore_board_devices));
 	twl4030_get_scripts(&encore_t2scripts_data);
 	omap_i2c_init();
-//	platform_device_register(&omap_vwlan_device);
+	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
