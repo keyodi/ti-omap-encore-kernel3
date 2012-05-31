@@ -59,7 +59,6 @@
 #define KXTF9_GPIO_FOR_IRQ  		113
 
 #define OMAP_ENCORE_WLAN_PMENA_GPIO	22
-//#define OMAP_encore_WLAN_IRQ_GPIO	(162)
 
 #ifdef CONFIG_BATTERY_MAX17042
 static void max17042_dev_init(void)
