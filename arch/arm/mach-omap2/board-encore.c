@@ -161,8 +161,7 @@ static void config_wlan_mux(void)
 
 static struct wl12xx_platform_data zoom3_wlan_data __initdata = {
 	.irq = OMAP_GPIO_IRQ(ZOOM3_WIFI_IRQ_GPIO),
-	.board_ref_clock = WL12XX_REFCLOCK_26,
-	.board_tcxo_clock = WL12XX_TCXOCLOCK_26,
+	.board_ref_clock = WL12XX_REFCLOCK_38,
 };
 
 static void zoom3_wifi_init(void)
