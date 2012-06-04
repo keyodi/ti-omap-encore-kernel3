@@ -26,14 +26,12 @@
 
 #include "mux.h"
 
-#define LCD_PANEL_ENABLE_GPIO		36
 #define LCD_CABC0_GPIO                  44
 #define LCD_CABC1_GPIO                  45
 #define LCD_BACKLIGHT_EN_EVT2           47
 
 #define DEFAULT_BACKLIGHT_BRIGHTNESS    105
 
-/*---backlight--------------------------------------------------------------------*/
 static void boxer_backlight_set_power(struct omap_pwm_led_platform_data *self, int on_off)
 {
 	gpio_direction_output(LCD_BACKLIGHT_EN_EVT2, !on_off);
@@ -41,19 +39,20 @@ static void boxer_backlight_set_power(struct omap_pwm_led_platform_data *self, i
 }
 
 static struct omap_pwm_led_platform_data boxer_backlight_data = {
-	.name            = "lcd-backlight",
+	.name		 = "lcd-backlight",
+	.default_trigger = "backlight",
 	.intensity_timer = 8,
-	.bkl_max    = 254,
-	.bkl_min    = 5,
-	.bkl_freq    = 128,
-	.invert     = 0,
+	.bkl_max	 = 254,
+	.bkl_min	 = 5,
+	.bkl_freq	 = 128,
+	.invert		 = 0,
 	.def_brightness	 = DEFAULT_BACKLIGHT_BRIGHTNESS,
-	.set_power       = boxer_backlight_set_power,
+	.set_power	 = boxer_backlight_set_power,
 };
 
 static struct platform_device boxer_backlight_led_device = {
 	.name		= "omap_pwm_led",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
 	.platform_data = &boxer_backlight_data,
 	},
@@ -75,25 +74,43 @@ static void __init boxer_backlight_init(void)
         gpio_set_value(LCD_CABC1_GPIO,0);
 }
 
-/*--------------------------------------------------------------------------*/
-struct boxer_panel_data {
-	struct regulator *vlcd;
-};
-
-static struct boxer_panel_data boxer_panel;
-
-static inline struct boxer_panel_data * get_panel_data(struct omap_dss_device *dssdev)
-{
-	return dssdev->data;
-}
-
 static struct omap_dss_device evt_lcd_device = {
+	.phy		= {
+		.dpi	= {
+			.data_lines	= 24,
+		},
+	},
+	.clocks		= {
+		.dispc	= {
+			.channel	= {
+				.lck_div        = 1,
+				.pck_div        = 4,
+				.lcd_clk_src    = OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
+			},
+			.dispc_fclk_src = OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
+		},
+	},
+        .panel          = {
+		.config		= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+				  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.timings	= {
+			.x_res          = 1024,
+			.y_res          = 600,
+			.pixel_clock    = 65000, /* in kHz */
+			.hfp            = 70,	 /* HFP fix 160 */
+			.hsw            = 40,    /* HSW = 1~140 */
+			.hbp            = 200,   /* HSW + HBP = 160 */
+			.vfp            = 10,    /* VFP fix 12 */
+			.vsw            = 10,    /* VSW = 1~20 */
+			.vbp            = 11,    /* VSW + VBP = 23 */
+		},
+		.width_in_um = 158000,
+		.height_in_um = 92000,
+        },
 	.name = "lcd",
 	.driver_name = "boxer_panel",
 	.type = OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines = 24,
 	.channel = OMAP_DSS_CHANNEL_LCD,
-	.data = &boxer_panel,
 };
 
 static struct omap_dss_device *evt_dss_devices[] = {
@@ -106,23 +123,15 @@ static struct omap_dss_board_info evt_dss_data = {
 	.default_device = &evt_lcd_device,
 };
 
-/*--------------------------------------------------------------------------*/
-static struct omap2_mcspi_device_config evt_lcd_mcspi_config = {
-	.turbo_mode             = 0,
-	.single_channel         = 1,  /* 0: slave, 1: master */
-};
-
 struct spi_board_info evt_spi_board_info[] __initdata = {
-	[0] = {
+	{
 		.modalias               = "boxer_disp_spi",
 		.bus_num                = 4,
 		.chip_select            = 0,
 		.max_speed_hz           = 375000,
-		.controller_data        = &evt_lcd_mcspi_config,
 	},
 };
 
-/*--------------------------------------------------------------------------*/
 static struct platform_device *evt_panel_devices[] __initdata = {
 	&boxer_backlight_led_device,
 };

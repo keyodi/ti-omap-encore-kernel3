@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
-#define	DEBUG
+#undef	DEBUG
 
 #include <linux/kernel.h>
 #include <linux/init.h>
