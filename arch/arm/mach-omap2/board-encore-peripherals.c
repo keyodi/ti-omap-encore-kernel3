@@ -252,7 +252,9 @@ static struct platform_device encore_keys_gpio = {
 	},
 };
 
-static struct __initdata twl4030_power_data encore_t2scripts_data;
+static struct __initdata twl4030_power_data encore_t2scripts_data = {
+	.use_poweroff	= true,
+};
 
 static struct regulator_consumer_supply encore_vmmc1_supply = {
 	.supply		= "vmmc",
