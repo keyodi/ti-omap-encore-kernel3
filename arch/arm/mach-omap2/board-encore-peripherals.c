@@ -357,7 +357,7 @@ static struct fixed_voltage_config encore_lcd_touch_reg_data = {
 	.microvolts = 3300000,
 	.gpio = 36,
 	.enable_high = 1,
-	.enabled_at_boot = 0,
+	.enabled_at_boot = 1,
 	.init_data = &encore_lcd_tp_vinit,
 };
 
@@ -743,7 +743,7 @@ static int __init omap_i2c_init(void)
 
 	omap_pmic_init(1, 100, "tps65921", INT_34XX_SYS_NIRQ, &encore_twldata);
 
-	err=i2c_register_board_info(1,encore_i2c_boardinfo, ARRAY_SIZE(encore_i2c_boardinfo));
+	err=i2c_register_board_info(1, encore_i2c_boardinfo, ARRAY_SIZE(encore_i2c_boardinfo));
 	if (err)
 	  return err;
 
