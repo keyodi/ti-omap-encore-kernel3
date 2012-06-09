@@ -100,4 +100,9 @@ extern struct device *omap4_get_dsp_device(void);
 extern struct device *omap4_get_fdif_device(void);
 extern int omap_device_scale(struct device *req_dev, struct device *target_dev,
 			unsigned long rate);
+
+extern struct meminfo meminfo;
+void omap_init_ram_size(void);
+phys_addr_t omap_total_ram_size(void);
+
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

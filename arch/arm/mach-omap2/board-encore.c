@@ -189,6 +189,7 @@ static void __init omap_zoom_init(void)
 
 static void __init zoom_reserve(void)
 {
+	omap_init_ram_size();
 	/* do the static reservations first */
 	memblock_remove(OMAP3_PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
 
