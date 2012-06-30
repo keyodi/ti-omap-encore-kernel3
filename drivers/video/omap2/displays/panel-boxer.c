@@ -229,8 +229,8 @@ static struct omap_dss_driver boxer_driver = {
 
 	.enable         = boxer_panel_enable,
 	.disable        = boxer_panel_disable,
-	.suspend        = boxer_panel_suspend,
-	.resume         = boxer_panel_resume,
+	//.suspend        = boxer_panel_suspend,
+	//.resume         = boxer_panel_resume,
 
 	.get_resolution = boxer_get_resolution,
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
