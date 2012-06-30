@@ -445,7 +445,7 @@ void omap_sram_idle(bool suspend)
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
-		//omap2_gpio_prepare_for_idle(per_going_off, suspend);
+		omap2_gpio_prepare_for_idle(per_going_off, suspend);
 	}
 
 	/* CORE */
@@ -527,7 +527,7 @@ void omap_sram_idle(bool suspend)
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
-		//omap2_gpio_resume_after_idle(per_going_off);
+		omap2_gpio_resume_after_idle(per_going_off);
 	}
 
 	/* Disable IO-PAD and IO-CHAIN wakeup */
