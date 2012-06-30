@@ -167,6 +167,7 @@
 #define TWL_SIL_TYPE(rev)		((rev) & 0x00FFFFFF)
 #define TWL_SIL_REV(rev)		((rev) >> 24)
 #define TWL_SIL_5030			0x09002F
+#define TWL_SIL_TPS65921		0x77802F
 #define TWL5030_REV_1_0			0x00
 #define TWL5030_REV_1_1			0x10
 #define TWL5030_REV_1_2			0x30
@@ -174,6 +175,7 @@
 #define TWL4030_CLASS_ID 		0x4030
 #define TWL6030_CLASS_ID 		0x6030
 unsigned int twl_rev(void);
+bool twl_rev_is_tps65921(void);
 #define GET_TWL_REV (twl_rev())
 #define TWL_CLASS_IS(class, id)			\
 static inline int twl_class_is_ ##class(void)	\
@@ -460,8 +462,8 @@ int twl6030_unregister_notifier(struct notifier_block *nb,
 #define TWL4030_PM_MASTER_MEMORY_ADDRESS	0x23
 #define TWL4030_PM_MASTER_MEMORY_DATA		0x24
 
-#define TWL4030_PM_MASTER_KEY_CFG1		0xc0
-#define TWL4030_PM_MASTER_KEY_CFG2		0x0c
+#define TWL4030_PM_MASTER_KEY_CFG1		(twl_rev_is_tps65921() ? 0xFC : 0xC0)
+#define TWL4030_PM_MASTER_KEY_CFG2		(twl_rev_is_tps65921() ? 0x96 : 0x0C)
 
 #define TWL4030_PM_MASTER_KEY_TST1		0xe0
 #define TWL4030_PM_MASTER_KEY_TST2		0x0e

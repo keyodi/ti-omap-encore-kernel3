@@ -34,6 +34,7 @@
 #include <../../mach-omap2/smartreflex.h>
 
 static u8 twl4030_start_script_address = 0x2b;
+static uint32_t twl4030_rev;
 
 #define PWR_P1_SW_EVENTS	0x10
 #define PWR_DEVOFF		(1 << 0)
@@ -555,6 +556,34 @@ void twl4030_power_off(void)
 	if (err)
 		pr_err("TWL4030 Unable to power off\n");
 
+}
+
+static void twl4030_load_rev(void)
+{
+	int err;
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_INTBR,
+			TWL_EEPROM_R_UNLOCK, REG_UNLOCK_TEST_REG);
+	if (err)
+		pr_err("TWL4030 Unable to unlock IDCODE registers\n");
+
+	err = twl_i2c_read(TWL4030_MODULE_INTBR, (u8 *)(&twl4030_rev),
+			0x0, 4);
+	if (err)
+		pr_err("TWL4030: unable to read IDCODE-%d\n", err);
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_INTBR, 0x0,
+			REG_UNLOCK_TEST_REG);
+	if (err)
+		pr_err("TWL4030 Unable to relock IDCODE registers\n");
+}
+
+bool twl_rev_is_tps65921(void)
+{
+	if (twl4030_rev == 0)
+		twl4030_load_rev();
+
+	return TWL_SIL_TYPE(twl4030_rev) == TWL_SIL_TPS65921;
 }
 
 void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
