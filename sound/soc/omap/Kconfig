@@ -21,7 +21,14 @@ config SND_OMAP_SOC_ABE
 	tristate
 
 config SND_OMAP_SOC_DMIC
-    tristate
+	tristate
+
+config ABE_44100
+	tristate
+
+config SND_SOC_TLV320DAC3100
+	tristate
+	depends on I2C
 
 config SND_OMAP_SOC_HDMI
 	tristate
@@ -163,6 +170,15 @@ config SND_OMAP_SOC_OMAP3_BEAGLE
 	help
 	  Say Y if you want to add support for SoC audio on the Beagleboard or
 	  the clone Devkit8000.
+
+config SND_OMAP_SOC_OMAP3ENCORE_DAC3100
+	tristate "SoC Audio support for OMAP3EVT (TLV320DAC3100 codec)"
+	depends on SND_OMAP_SOC && MACH_ENCORE
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TLV320DAC3100
+	help
+	  Say Y if you want to add support for tlv320dac3100 Soc Audio on
+	  Encore board.
 
 config SND_OMAP_SOC_ZOOM2
 	tristate "SoC Audio support for Zoom2"
