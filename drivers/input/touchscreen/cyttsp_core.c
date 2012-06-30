@@ -314,7 +314,6 @@ static void cyttsp_report_tchdata(struct cyttsp *ts)
 		input_report_abs(input, ABS_MT_PRESSURE, tch->z);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, tch->z);
 		input_report_abs(input, ABS_MT_WIDTH_MAJOR, 20);
-		input_report_key(input, BTN_TOUCH, 1);
 
 		__set_bit(ids[i], used);
 	}
@@ -567,7 +566,6 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	input_set_drvdata(input_dev, ts);
 
 	__set_bit(EV_ABS, input_dev->evbit);
-	set_bit(BTN_TOUCH, input_dev->keybit);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
 			     0, pdata->maxx, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
