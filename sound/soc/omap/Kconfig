@@ -171,11 +171,11 @@ config SND_OMAP_SOC_OMAP3_BEAGLE
 	  Say Y if you want to add support for SoC audio on the Beagleboard or
 	  the clone Devkit8000.
 
-config SND_OMAP_SOC_OMAP3ENCORE_DAC3100
+config SND_OMAP_SOC_OMAP3ENCORE_AIC3100
 	tristate "SoC Audio support for OMAP3EVT (TLV320DAC3100 codec)"
-	depends on SND_OMAP_SOC && MACH_ENCORE
+	depends on SND_OMAP_SOC
 	select SND_OMAP_SOC_MCBSP
-	select SND_SOC_TLV320DAC3100
+	select SND_SOC_TLV320AIC3100
 	help
 	  Say Y if you want to add support for tlv320dac3100 Soc Audio on
 	  Encore board.

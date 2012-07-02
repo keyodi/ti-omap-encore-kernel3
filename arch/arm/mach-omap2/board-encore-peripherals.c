@@ -203,44 +203,6 @@ static struct cyttsp_platform_data cyttsp_platform_data = {
 	.irq_gpio = OMAP_CYTTSP_GPIO,
 };
 
-#define AUDIO_CODEC_IRQ_GPIO		59
-#define AIC3100_NAME			"tlv320dac3100"
-#define AIC3100_I2CSLAVEADDRESS		0x18
-
-#if defined(CONFIG_SND_SOC_TLV320DAC3100) || defined(CONFIG_SND_SOC_TLV320DAC3100) ||  defined(CONFIG_SND_SOC_TLV320AIC)
-#define AUDIO_CODEC_POWER_ENABLE_GPIO	103
-#define AUDIO_CODEC_RESET_GPIO		37
-
-static void audio_dac_3100_dev_init(void)
-{
-	printk("board-3621_evt1a.c: audio_dac_3100_dev_init ...\n");
-	if (gpio_request(AUDIO_CODEC_RESET_GPIO, "AUDIO_CODEC_RESET_GPIO") < 0) {
-		printk(KERN_ERR "can't get AUDIO_CODEC_RESET_GPIO \n");
-		return;
-	}
-
-	printk("board-3621_evt1a.c: audio_dac_3100_dev_init > set AUDIO_CODEC_RESET_GPIO to output Low!\n");
-	gpio_direction_output(AUDIO_CODEC_RESET_GPIO, 0);
-	gpio_set_value(AUDIO_CODEC_RESET_GPIO, 0);
-
-	printk("board-3621_evt1a.c: audio_dac_3100_dev_init ...\n");
-	if (gpio_request(AUDIO_CODEC_POWER_ENABLE_GPIO, "AUDIO DAC3100 POWER ENABLE") < 0) {
-		printk(KERN_ERR "can't get AUDIO_CODEC_POWER_ENABLE_GPIO \n");
-		return;
-	}
-
-	printk("board-3621_evt1a.c: audio_dac_3100_dev_init > set AUDIO_CODEC_POWER_ENABLE_GPIO to output and value high!\n");
-	gpio_direction_output(AUDIO_CODEC_POWER_ENABLE_GPIO, 0);
-	gpio_set_value(AUDIO_CODEC_POWER_ENABLE_GPIO, 1);
-
-	/* 1 msec delay needed after PLL power-up */
-	mdelay (1);
-
-	printk("board-3621_evt1a.c: audio_dac_3100_dev_init > set AUDIO_CODEC_RESET_GPIO to output and value high!\n");
-	gpio_set_value(AUDIO_CODEC_RESET_GPIO, 1);
-}
-#endif
-
 /* Encore keymap*/
 static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_HOME),
@@ -407,15 +369,9 @@ static struct platform_device encore_lcd_touch_regulator_device = {
 	},
 };
 
-static struct platform_device encore_aic3110 = {
-	.name = "tlv320aic3110-codec",
-	.id = -1,
-};
-
 static struct platform_device *encore_board_devices[] __initdata = {
 	&encore_keys_gpio,
 	&encore_lcd_touch_regulator_device,
-	&encore_aic3110,
 };
 
 static struct platform_device omap_vwlan_device = {
@@ -772,8 +728,7 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 		.irq = OMAP_GPIO_IRQ(OMAP_FT5x06_GPIO),
 	},
 	{                
-		I2C_BOARD_INFO(AIC3100_NAME, AIC3100_I2CSLAVEADDRESS),
-                .irq = OMAP_GPIO_IRQ(AUDIO_CODEC_IRQ_GPIO),
+		I2C_BOARD_INFO("tlv320aic31xx-codec", 0x18),
 	},	
 
 };
@@ -811,9 +766,7 @@ void __init zoom_peripherals_init(void)
 	usb_musb_init(NULL);
 	enable_board_wakeup_source();
 	omap_serial_init();
-#if defined(CONFIG_SND_SOC_TLV320DAC3100) ||  defined(CONFIG_SND_SOC_TLV320AIC3100)
-	audio_dac_3100_dev_init();
-#endif
+
 	max8903_charger_init();
 	kxtf9_dev_init();
         max17042_dev_init();
