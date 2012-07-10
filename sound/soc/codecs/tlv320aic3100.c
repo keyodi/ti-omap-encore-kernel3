@@ -163,116 +163,154 @@ struct i2c_msg i2c_left_transaction[120];
  * mclk, rate, p_val, pll_j, pll_d, dosr, ndac, mdac, aosr, nadc, madc, blck_N
  */
 static const struct aic31xx_rate_divs aic31xx_divs[] = {
+	/*
+ * mclk, rate, p_val, pll_j, pll_d, dosr, ndac, mdac, aosr, nadc, madc, blck_N,
+ * codec_speficic_initializations
+ */
 	/* 8k rate */
-	{19200000, 8000, 1, 5, 1200, 768, 16, 1, 128, 48, 2, 24},
+	// DDenchev (MMS)
+	{12000000, 8000, 1, 7, 1680, 128, 2, 42, 4,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 1}}},
+	{13000000, 8000, 1, 6, 3803, 128, 3, 27, 4,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 4}}},
+	{24000000, 8000, 2, 7, 6800, 768, 15, 1, 24,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
 	/* 11.025k rate */
-	{19200000, 11025, 1, 4, 4100, 256, 15, 2, 128, 30, 2, 8},
-	/* 12K rate */
-	{19200000, 12000, 1, 4, 8000, 256, 15, 2, 128, 30, 2, 8},
+	// DDenchev (MMS)
+	{12000000, 11025, 1, 7, 560, 128, 5, 12, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 11025, 1, 6, 1876, 128, 3, 19, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+	{24000000, 11025, 2, 7, 5264, 512, 16, 1, 16,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
+	/* 12k rate */
+	// DDenchev (MMS)
+	{12000000, 12000, 1, 7, 1680, 128, 2, 28, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 12000, 1, 6, 3803, 128, 3, 18, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+
 	/* 16k rate */
-	{19200000, 16000, 1, 5, 1200, 256, 12, 2, 128, 24, 2, 8},
+	// DDenchev (MMS)
+	{12000000, 16000, 1, 7, 1680, 128, 2, 21, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 16000, 1, 6, 6166, 128, 3, 14, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+	{24000000, 16000, 2, 7, 6800, 384, 15, 1, 12,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
 	/* 22.05k rate */
-	{19200000, 22050, 1, 4, 7040, 256, 8, 2, 128, 16, 2, 8},
+	// DDenchev (MMS)
+	{12000000, 22050, 1, 7, 560, 128, 5, 6, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 22050, 1, 6, 5132, 128, 3, 10, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+	{24000000, 22050, 2, 7, 5264, 256, 16, 1, 8,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
 	/* 24k rate */
-	{19200000, 24000, 1, 5, 1200, 256, 8, 2, 128, 16, 2, 8},
+	// DDenchev (MMS)
+	{12000000, 24000, 1, 7, 1680, 128, 2, 14, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 24000, 1, 6, 3803, 128, 3, 9, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+
 	/* 32k rate */
-	{19200000, 32000, 1, 5, 1200, 256, 6, 2, 128, 12, 2, 8},
+	// DDenchev (MMS)
+	{12000000, 32000, 1, 6, 1440, 128, 2, 9, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 32000, 1, 6, 6166, 128, 3, 7, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+	{24000000, 32000, 2, 7, 1680, 192, 7, 2, 6,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
 	/* 44.1k rate */
-	{19200000, 44100, 1, 4, 7040, 128, 4, 4, 128, 8, 2, 4},
+	// DDenchev (MMS)
+	{12000000, 44100, 1, 7, 560, 128, 5, 3, 4,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 1}}},
+	{13000000, 44100, 1, 6, 5132, 128, 3, 5, 4,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 4}}},
+	{24000000, 44100, 2, 7, 5264, 128, 8, 2, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
 	/* 48k rate */
-#ifndef CONFIG_MINIDSP
-	{19200000, 48000, 1, 5, 1200, 128, 4, 4, 128, 8, 2, 4},
-#else
-	{19200000, 48000, 1, 5, 1200, 128, 2, 8, 128, 2, 8, 4},
-#endif
-	/*96k rate */
-	{19200000, 96000, 1, 5, 1200, 256, 2, 2, 128, 4, 2, 8},
-	/*192k */
-	{19200000, 192000, 1, 5, 1200, 256, 2, 1, 128, 4, 1, 16},
+	// DDenchev (MMS)
+	{12000000, 48000, 1, 7, 1680, 128, 2, 7, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+	{13000000, 48000, 1, 6, 6166, 128, 7, 2, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
+	{24000000, 48000, 2, 8, 1920, 128, 8, 2, 4,
+	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
+
+	/*96k rate : GT 21/12/2009: NOT MODIFIED */
+	{12000000, 96000, 1, 8, 1920, 64, 2, 8, 2,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 7}}},
+	{13000000, 96000, 1, 6, 6166, 64, 7, 2, 2,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 10}}},
+	{24000000, 96000, 2, 8, 1920, 64, 4, 4, 2,
+	 {{DAC_PRB_SEL_REG, 7}, {61, 7}}},
+
+	/*192k : GT 21/12/2009: NOT MODIFIED */
+	{12000000, 192000, 1, 8, 1920, 32, 2, 8, 1,
+	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
+	{13000000, 192000, 1, 6, 6166, 32, 7, 2, 1,
+	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
+	{24000000, 192000, 2, 8, 1920, 32, 4, 4, 1,
+	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
 };
 
 /* Caching the register values */
-
-#if defined(AIC3110_CODEC_SUPPORT)
-
-static const u8 aic31xx_reg[AIC31xx_CACHEREGNUM] = {
-	/* Page 0 Registers */
-	0x00, 0x00, 0x12, 0x00, 0x00, 0x11, 0x04, 0x00,
-	0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x80, 0x00,
-	0x00, 0x00, 0x01, 0x01, 0x80, 0x00, 0x00, 0x00,
-	0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x55,
-	0x55, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x14,
-	0x0c, 0x00, 0x00, 0x00, 0x6f, 0x38, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0xee, 0x10, 0xd8, 0x7e, 0xe3,
-	0x00, 0x00, 0x88, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x7f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x10, 0x32, 0x54, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x02,
-
-	/* Page 1 Registers */
-	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-#elif defined(AIC3100_CODEC_SUPPORT)
-
 static const u8 aic31xx_reg[] = {
-	/* Page 0 Register */
-	0x00, 0x00, 0x02, 0x00, 0x00, 0x11, 0x04, 0x00,
-	0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x80, 0x80,
-	0x08, 0x00, 0x01, 0x01, 0x80, 0x80, 0x04, 0x00,
-	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x02, 0x00,
-	0x02, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x14,
-	0x0C, 0x00, 0x00, 0x00, 0x0F, 0x38, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0xEE, 0x10, 0xD8, 0x7E, 0x73,
-	0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-
-	/* Page 1 Registers */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
-	0x05, 0x3E, 0x00, 0x00, 0x7F, 0x7F, 0x7F, 0x7F,
-	0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x02,	/* 0 */
+	0x00, 0x11, 0x04, 0x00,	/* 4 */
+	0x00, 0x00, 0x00, 0x01,	/* 8 */
+	0x01, 0x00, 0x80, 0x80,	/* 12 */
+	0x08, 0x00, 0x01, 0x01,	/* 16 */
+	0x80, 0x80, 0x04, 0x00,	/* 20 */
+	0x00, 0x00, 0x01, 0x00,	/* 24 */
+	0x00, 0x00, 0x01, 0x00,	/* 28 */
+	0x00, 0x00, 0x00, 0x00,	/* 32 */
+	0x00, 0x00, 0x00, 0x00,	/* 36 */
+	0x00, 0x00, 0x00, 0x00,	/* 40 */
+	0x00, 0x00, 0x00, 0x00,	/* 44 */
+	0x00, 0x00, 0x00, 0x00,	/* 48 */
+//	0x00, 0x02, 0x02, 0x00,	/* 52 */
+	0x00, 0x00, 0x02, 0x00,	/* 52 */
+	0x00, 0x00, 0x00, 0x00,	/* 56 */
+	0x01, 0x04, 0x00, 0x14,	/* 60 */
+	0x0C, 0x00, 0x00, 0x00,	/* 64 */
+	0x0F, 0x38, 0x00, 0x00,	/* 68 */
+	0x00, 0x00, 0x00, 0xEE,	/* 72 */
+	0x10, 0xD8, 0x7E, 0xE3,	/* 76 */
+	0x00, 0x00, 0x80, 0x00,	/* 80 */
+	0x00, 0x00, 0x00, 0x00,	/* 84 */
+//	0x7F, 0x00, 0x00, 0x00,	/* 88 */
+	0x00, 0x00, 0x00, 0x00,	/* 88 */
+	0x00, 0x00, 0x00, 0x00,	/* 92 */
+	0x00, 0x00, 0x00, 0x00,	/* 96 */
+	0x00, 0x00, 0x00, 0x00,	/* 100 */
+	0x00, 0x00, 0x00, 0x00,	/* 104 */
+	0x00, 0x00, 0x00, 0x00,	/* 108 */
+	0x00, 0x00, 0x00, 0x00,	/* 112 */
+	0x00, 0x00, 0x00, 0x00,	/* 116 */
+	0x00, 0x00, 0x00, 0x00,	/* 120 */
+	0x00, 0x00, 0x00, 0x00,	/* 124 - PAGE0 Registers(127) ends here */
+	0x00, 0x00, 0x00, 0x00,	/* 128, PAGE1-0 */
+	0x00, 0x00, 0x00, 0x00,	/* 132, PAGE1-4 */
+	0x00, 0x00, 0x00, 0x00,	/* 136, PAGE1-8 */
+	0x00, 0x00, 0x00, 0x00,	/* 140, PAGE1-12 */
+	0x00, 0x00, 0x00, 0x00,	/* 144, PAGE1-16 */
+	0x00, 0x00, 0x00, 0x00,	/* 148, PAGE1-20 */
+	0x00, 0x00, 0x00, 0x00,	/* 152, PAGE1-24 */
+	0x00, 0x00, 0x00, 0x04,	/* 156, PAGE1-28 */
+	0x06, 0x3E, 0x00, 0x00,	/* 160, PAGE1-32 */
+	0x7F, 0x7F, 0x7F, 0x7F,	/* 164, PAGE1-36 */
+	0x02, 0x02, 0x00, 0x00,	/* 168, PAGE1-40 */
+	0x00, 0x00, 0x00, 0x80,	/* 172, PAGE1-44 */
+	0x00, 0x00, 0x00,	/* 176, PAGE1-48 */
 };
-#endif
 
 /*
  * aic31xx initialization data
@@ -283,48 +321,69 @@ static const u8 aic31xx_reg[] = {
  * in aic31xx_init() function only.
  */
 static const struct aic31xx_configs aic31xx_reg_init[] = {
-
-	/* Clock settings */
-	{CLK_REG_1, CODEC_MUX_VALUE},
-
-	/* Switch off PLL while Initiazling Codec */
-	{INTERFACE_SET_REG_1, BCLK_DIR_CTRL},
-
+/* Carry out the software reset */
+//	{RESET, 0x01},
+//	{RESET, 0x00},
+	/* Connect MIC1_L and MIC1_R to CM */
+        //	{MICPGA_CM, 0xC0},
+	/* PLL is CODEC_CLKIN */
+	{CLK_REG_1, PLLCLK_2_CODEC_CLKIN},
+        /* Switch off PLL */
+        {CLK_REG_2,  0x00},
+        {CLK_REG_3,  0x00},
+        {CLK_REG_4,  0x00},
+        {CLK_REG_5,  0x00},
+        /* Switch off NDAC and MDAC and BCLK_N Dividers */
+        {NDAC_CLK_REG, 0x00},
+        {MDAC_CLK_REG,  0x00},
+        {DAC_OSR_MSB,     0x00},
+        {DAC_OSR_LSB,     0x00},
+        /* DAC_MOD_CLK is BCLK source */
 	{INTERFACE_SET_REG_2, DAC_MOD_CLK_2_BDIV_CLKIN},
 
-	/* Configuring HP in Line out Mode */
-	{HP_DRIVER_CTRL, 0x06},
+	/* Switch off BCLK_N Divider */
+	{BCLK_N_VAL, 0x00},
 
-	/* HP pop removal settings */
-	{HP_POP_CTRL, (BIT7 | HP_POWER_UP_76_2_MSEC | HP_DRIVER_3_9_MS |
-						CM_VOLTAGE_FROM_BAND_GAP)},
+	/* Setting up DAC Channel */
+	{DAC_CHN_REG, LDAC_2_LCHN | RDAC_2_RCHN /*| SOFT_STEP_2WCLK8*/},
+	{DAC_MUTE_CTRL_REG, 0x0C},   	/* Mistral: Updated this value from 0x00 to 0x0C to MUTE DAC Left and Right channels */
 
-	/* Speaker Ramp up time scaled to 30.5ms */
-	{PGA_RAMP_CTRL, 0x70},
+        /* Mistral Added following configuration for EQ Setup */
+        /* Mistral: Updated the DACR volume also to -6dB */
+        {LDAC_VOL, 0xFC}, /* Update DACL volume control from -6db to -1.5db to get speaker and Headphone volume loud enough on Encore device */
+        {RDAC_VOL, 0xFC}, /* Update DACR volume control from -6db to -1.5db to get speaker and Headphone volume loud enough on Encore device */
+        {VOL_MICDECT_ADC, 0x00}, /* Configure the DAC Volume to default settings */
 
-	/* Headset Detect setting */
-	{INTL_CRTL_REG_1, 0xC0},
+        /* reg[1][42] should be configured at 0x04. This is already done above */
+        /* reg[1][35] should be configured correctly. This is already done above */
+        /* reg[1][32] should be powered up, Will be done at run-time */
+        /* reg[1][38] should be routed to Class-D Output Driver. This is already done above */
 
-	/* short circuit protection of HP and Speaker power bits */
-	{HP_SPK_ERR_CTL, 3},
 
-	/* Headset detection enabled by default and Debounce programmed to 32 ms
-	 * for Headset Detection and 32ms for Headset button-press Detection
-	 */
-	{HEADSET_DETECT, (HP_DEBOUNCE_32_MS | HS_DETECT_EN |
-					HS_BUTTON_PRESS_32_MS)},
+        /* Headphone drivers */
+	{HEADPHONE_DRIVER, 0x04}, /* 0xCC Mistral: Updated this value from 0xC4. We do not need to Power up HPL and HPR at startup */
+	{CLASSD_SPEAKER_AMP, 0x06},            /* Mistral: Updated this value from 0xc6 to 0x06 */
+	/* Headphone powerup */
+	{HP_POP_CTRL, (BIT7 | HP_POWER_UP_15_3_MSEC 
+                      | HP_RAMP_UP_STIME_3_9MS 
+                      | HP_BANDGAP_COMMON_MODE)},  /* Mistral modified value to power down DAC after HP and SPK Amplifiers */
+        {PGA_RAMP_CTRL, 0x70},        /* Speaker Ramp up time scaled to 30.5ms */
+	/* DAC_L and DAC_R Output Mixer Routing */
+	{DAC_MIX_CTRL, 0x44},  //DAC_X is routed to the channel mixer amplifier
+	/* HPL gain 0db initial */
+	{L_ANLOG_VOL_2_HPL, 0x9E},
+	/* HPR gain 0db initial */
+	{R_ANLOG_VOL_2_HPR, 0x9E},
 
-#ifdef ACCLAIM_SUPPORT
-#ifndef CONFIG_MINIDSP
-	/* DAC PRB configured to PRB_2 */
-	{DAC_PRB_SEL_REG, 0x02},
-	{ADC_PRB_SEL_REG, 0x05},
-#endif
-	/*DRC settings */
-	{DRC_CTRL_3, 0xB6},
-	{DRC_CTRL_2, 0x00},
-	{DRC_CTRL_1, 0x1A}, /* Increased Threshold to -21db */
-#endif
+	{L_ANLOG_VOL_2_SPL, 0x80},        /* Mistral: Updated Values en plus 0x80 - 0x92 */
+
+        /* HPL mute and gain 0db */
+	{HPL_DRIVER, 0x00}, /* Mistral: Updated this value from 0x2. Put HPL to common-mode and MUTED state at startup */
+	/* HPR mute and gain 0db */
+	{HPR_DRIVER, 0x00}, /* Mistral: Updated this value from 0x2. Put HPR to common-mode and MUTED state at startup */
+        {SPL_DRIVER, 0x00},		/* Keep the Speaker driver in MUTE State by Default */
+
+	{HP_DRIVER_CTRL, 0x00}, /* Configured the default value to 0x00 */
 };
 
 /*
@@ -352,7 +411,7 @@ static char const *dacleftip_control[] = {"off", "left data",
 static char const *dacrightip_control[] = { "off", "right data", "left data",
 	"(left+right)/2" };
 
-static char const *dacvoltage_control[] = {"1.35 V", "5 V ", "1.65 V", "1.8 V"};
+static char const *dacvoltage_control[] = {"1.35 V", "1.5 V ", "1.65 V", "1.8 V"};
 static char const *headset_detection[] = {"Disabled", "Enabled"};
 static char const *drc_enable[] = {"Disabled", "Enabled"};
 static char const *mic1lp_enable[] = {"off", "10 k", "20 k", "40 k"};
@@ -1366,6 +1425,25 @@ static inline int aic31xx_get_divs(int mclk, int rate)
 	return -EINVAL;
 }
 
+int dac3100_change_page(struct snd_soc_codec *codec, u8 new_page)
+{
+	struct dac3100_priv *dac3100 = snd_soc_codec_get_drvdata(codec);;
+	u8 data[2];
+
+	data[0] = 0;
+	data[1] = new_page;
+	aic31xx->page_no = new_page;
+	DBG("##dac3100_change_page => %d\nw 30 %02x %02x\n", new_page, data[0], data[1]);
+
+//	DBG("w 30 %02x %02x\n", data[0], data[1]);
+
+	if (codec->hw_write(codec->control_data, data, 2) != 2) {
+		printk(KERN_ALERT "Error in changing page to %d\n", new_page);
+		return -1;
+	}
+	return 0;
+}
+
 /*
  * aic31xx_add_widgets
  *
@@ -1854,6 +1932,10 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 		DBG("###aic31xx_set_bias_level BIAS_PREPARE\n");
 		break;
 
+
+
+
+
 	/* Off, with power */
 	case SND_SOC_BIAS_STANDBY:
 		DBG("###aic31xx_set_bias_level STANDBY\n");
@@ -1951,10 +2033,7 @@ static int tlv320aic31xx_init(struct snd_soc_codec *codec)
 	int ret = 0;
 	int i = 0;
 	u32 val;
-#ifdef ACCLAIM_SUPPORT
-	int codec_interrupt_gpio = AUDIO_CODEC_INTERRUPT;
-	int codec_interrupt = 0;
-#endif
+
 	DBG(KERN_ALERT "##+tlv320aic31xx_init\n");
 
 	/* Initialize private data for the codec */
@@ -1966,36 +2045,7 @@ static int tlv320aic31xx_init(struct snd_soc_codec *codec)
 	aic31xx->i2c_regs_status   =  0;
 
 	mutex_init(&aic31xx->mutex);
-#ifdef ACCLAIM_SUPPORT
-	ret = gpio_request(codec_interrupt_gpio, "Codec Interrupt");
-	if (ret < 0) {
-		printk(KERN_INFO "%s: error in gpio request. codec interrupt"
-				"failed\n", __func__);
-		return ret;
-	}
-	gpio_direction_input(codec_interrupt_gpio);
-	codec_interrupt = OMAP_GPIO_IRQ(codec_interrupt_gpio);
 
-
-	ret = gpio_request(AUDIO_CODEC_PWR_ON_GPIO,
-				 AUDIO_CODEC_PWR_ON_GPIO_NAME);
-	if (ret < 0) {
-		printk(KERN_ERR "%s: Unable get gpio for CODEC POWER %d\n",
-				__func__, AUDIO_CODEC_PWR_ON_GPIO);
-	}
-	gpio_direction_output(AUDIO_CODEC_PWR_ON_GPIO, 1);
-	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 1);
-	mdelay(10);
-
-	ret = gpio_request(AUDIO_CODEC_RESET_GPIO, AUDIO_CODEC_RESET_GPIO_NAME);
-	if (ret < 0) {
-		printk(KERN_ERR "%s: Unable get gpio for Reset %d\n",
-				__func__, AUDIO_CODEC_RESET_GPIO);
-	}
-	gpio_direction_output(AUDIO_CODEC_RESET_GPIO, 1);
-	gpio_set_value(AUDIO_CODEC_RESET_GPIO, 1);
-	mdelay(10);
-#endif
 	aic31xx->page_no = 0;
 	aic31xx->page_no = 0;
 
@@ -2185,7 +2235,7 @@ struct snd_soc_dai_driver aic31xx_dai = {
 	.name = "tlv320aic31xx-dai",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = AIC31xx_RATES,
 		.formats = AIC31xx_FORMATS,
@@ -2209,8 +2259,8 @@ static struct snd_soc_codec_driver aic31xx_codec = {
 	.reg_cache_default = aic31xx_reg,
 	.probe = aic31xx_probe,
 	.remove = aic31xx_remove,
-	.suspend = aic31xx_suspend,
-	.resume = aic31xx_resume,
+	.suspend = NULL, //aic31xx_suspend,
+	.resume = NULL, //aic31xx_resume,
 };
 
 /*
@@ -2220,7 +2270,10 @@ static int tlv320aic31xx_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
 {
 	int ret;
-
+#ifdef ACCLAIM_SUPPORT
+	int codec_interrupt_gpio = AUDIO_CODEC_INTERRUPT;
+	int codec_interrupt = 0;
+#endif
 	DBG(KERN_INFO "%s: started\n", __func__);
 	aic31xx = kzalloc(sizeof(struct aic31xx_priv), GFP_KERNEL);
 	if (aic31xx == NULL) {
@@ -2236,6 +2289,36 @@ static int tlv320aic31xx_i2c_probe(struct i2c_client *i2c,
 	INIT_WORK(&codec_init_works, aic31xx_codec_access_work);
 #endif
 
+#ifdef ACCLAIM_SUPPORT
+	ret = gpio_request(codec_interrupt_gpio, "Codec Interrupt");
+	if (ret < 0) {
+		printk(KERN_INFO "%s: error in gpio request. codec interrupt"
+				"failed\n", __func__);
+		return ret;
+	}
+	gpio_direction_input(codec_interrupt_gpio);
+	codec_interrupt = OMAP_GPIO_IRQ(codec_interrupt_gpio);
+
+
+	ret = gpio_request(AUDIO_CODEC_PWR_ON_GPIO,
+				 AUDIO_CODEC_PWR_ON_GPIO_NAME);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: Unable get gpio for CODEC POWER %d\n",
+				__func__, AUDIO_CODEC_PWR_ON_GPIO);
+	}
+	gpio_direction_output(AUDIO_CODEC_PWR_ON_GPIO, 1);
+	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 1);
+	mdelay(10);
+
+	ret = gpio_request(AUDIO_CODEC_RESET_GPIO, AUDIO_CODEC_RESET_GPIO_NAME);
+	if (ret < 0) {
+		printk(KERN_ERR "%s: Unable get gpio for Reset %d\n",
+				__func__, AUDIO_CODEC_RESET_GPIO);
+	}
+	gpio_direction_output(AUDIO_CODEC_RESET_GPIO, 1);
+	gpio_set_value(AUDIO_CODEC_RESET_GPIO, 1);
+	mdelay(10);
+#endif
 	ret = snd_soc_register_codec(&i2c->dev, &aic31xx_codec,
 				     &aic31xx_dai, 1);
 printk("DEVICE :::::::::::::::::::::::::::: %s\n", i2c->name);

@@ -46,8 +46,8 @@
 #define TLV320AIC3100ID                (0x18)
 
 #define CONFIG_TILOAD
-#undef CONFIG_TILOAD
-#define CONFIG_MINIDSP
+//#undef CONFIG_TILOAD
+//#define CONFIG_MINIDSP
 /* Build Macro for enabling/disabling the Adaptive Filtering */
 //#define CONFIG_ADAPTIVE_FILTER
 
@@ -68,7 +68,7 @@
 #define 	AUDIO_CODEC_PWR_ON_GPIO_NAME	"audio_codec_pwron"
 #define 	AUDIO_CODEC_RESET_GPIO_NAME	"audio_codec_reset"
 
-#define AIC31xx_RATES	(SNDRV_PCM_RATE_8000_192000)/*SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000*/
+#define AIC31xx_RATES	(SNDRV_PCM_RATE_8000_48000)/*SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000*/
 
 /* aic31xx supports the word formats 16bits, 20bits, 24bits and 32 bits */
 #define AIC31xx_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  |	\
