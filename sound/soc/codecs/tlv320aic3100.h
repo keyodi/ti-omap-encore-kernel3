@@ -70,6 +70,10 @@
 
 #define AIC31xx_RATES	(SNDRV_PCM_RATE_8000_48000)/*SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000*/
 
+#define dac3100_FREQ_12000000 12000000      //to be check
+#define dac3100_FREQ_24000000 24000000     //to be check
+#define dac3100_FREQ_13000000 13000000lu
+
 /* aic31xx supports the word formats 16bits, 20bits, 24bits and 32 bits */
 #define AIC31xx_FORMATS (SNDRV_PCM_FMTBIT_S16_LE  |	\
 			 SNDRV_PCM_FMTBIT_S20_3LE |	\
@@ -225,6 +229,8 @@
 #define HPR_DRIVER			(PAGE_1 + 41)
 /* SPL Driver */
 #define SPL_DRIVER			(PAGE_1 + 42)
+/* SPR Driver */
+#define SPR_DRIVER			(PAGE_1 + 43)
 /* HP Driver Control */
 #define HP_DRIVER_CTRL			(PAGE_1 + 44)
 /*MICBIAS Configuration Register*/
