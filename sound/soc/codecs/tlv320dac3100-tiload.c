@@ -54,9 +54,9 @@
 #ifdef CONFIG_TILOAD
 
 /* externs */
-extern int dac3100_change_page (struct snd_soc_codec *codec, u8 new_page);
-extern int dac3100_write (struct snd_soc_codec *codec, unsigned int reg,
-			  unsigned int value);
+extern int aic31xx_change_page (struct snd_soc_codec *codec, u8 new_page);
+//extern int aic31xx_write (struct snd_soc_codec *codec, unsigned int reg,
+//			  unsigned int value);
 
 int tiload_driver_init (struct snd_soc_codec *codec);
 
@@ -179,7 +179,7 @@ tiload_write (struct file *file, const char __user * buf,
 
   if (wr_data[0] == 0)
     {
-      dac3100_change_page (tiload_codec, wr_data[1]);
+      aic31xx_change_page (tiload_codec, wr_data[1]);
     }
 
   size = i2c_master_send (i2c, wr_data, count);
