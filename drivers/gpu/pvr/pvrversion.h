@@ -43,6 +43,15 @@
 #define PVRVERSION_STRING_SHORT     "1.8@" PVR_STR2(PVRVERSION_BUILD)
 
 #define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
+#define PVRVERSION_BUILD             785978
+#define PVRVERSION_BSCONTROL        "CustomerGoogle_Android_ogles1_ogles2_GPL"
+
+#define PVRVERSION_STRING           "CustomerGoogle_Android_ogles1_ogles2_GPL sgxddk 18 1.8@" PVR_STR2(PVRVERSION_BUILD)
+#define PVRVERSION_STRING_SHORT     "1.8@" PVR_STR2(PVRVERSION_BUILD)
+
+#define COPYRIGHT_TXT               "Copyright (c) Imagination Technologies Ltd. All Rights Reserved."
+#define PVRVERSION_BUILD_HI          78
+#define PVRVERSION_BUILD_LO          5978
 
 #define PVRVERSION_BUILD_HI          78
 #define PVRVERSION_BUILD_LO          9263
