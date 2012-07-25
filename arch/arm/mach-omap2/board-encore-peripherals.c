@@ -178,7 +178,11 @@ static int cyttsp_dev_init(void)
 
 	gpio_direction_input(OMAP_CYTTSP_GPIO);
 	/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
-
+	else
+        {
+                gpio_free(OMAP_CYTTSP_GPIO);
+                gpio_free(OMAP_CYTTSP_RESET_GPIO);
+        }
 	return 0;
 }
 
