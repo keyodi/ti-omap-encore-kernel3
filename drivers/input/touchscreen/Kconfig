@@ -792,4 +792,12 @@ config TOUCHSCREEN_QUANTUM_OBP
 
 	  If unsure, say N.
 
+config TOUCHSCREEN_FT5x06_I2C
+    tristate "Focal tech 5x06 based touchscreens"
+    depends on I2C
+    help
+      Say Y here if you have a FocalTech based touchscreen.
+
+      If unsure, say N.
+
 endif
