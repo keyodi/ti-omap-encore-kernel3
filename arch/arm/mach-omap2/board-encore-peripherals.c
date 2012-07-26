@@ -164,22 +164,29 @@ static struct ft5x06_platform_data ft5x06_platform_data = {
 	.use_gestures = 0,
 };
 
-static int cyttsp_dev_init(void)
+int  cyttsp_dev_init(int resource)
 {
-	if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
-		printk(KERN_ERR "can't get tma340 xreset GPIO\n");
-		return -1;
-	}
+        if (resource)
+        {
+                if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") <0) {
+                        printk(KERN_ERR "can't get tma340 xreset GPIO\n");
+                        return -1;
+                }
 
-	if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
-		printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
-		return -1;
-	}
+                if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
+                        printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
+                        return -1;
+                }
 
-	gpio_direction_input(OMAP_CYTTSP_GPIO);
-	/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
-
-	return 0;
+                gpio_direction_input(OMAP_CYTTSP_GPIO);
+                /* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
+        }
+        else
+        {
+                gpio_free(OMAP_CYTTSP_GPIO);
+                gpio_free(OMAP_CYTTSP_RESET_GPIO);
+        }
+    return 0;
 }
 
 static struct cyttsp_platform_data cyttsp_platform_data = {
