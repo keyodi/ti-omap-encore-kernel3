@@ -171,11 +171,22 @@ static int cyttsp_dev_init(void)
 		return -1;
 	}
 
+	else
+        {
+                gpio_free(OMAP_CYTTSP_GPIO);
+                gpio_free(OMAP_CYTTSP_RESET_GPIO);
+        }
+
 	if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
 		printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
 		return -1;
 	}
 
+	else
+        {
+                gpio_free(OMAP_CYTTSP_GPIO);
+                gpio_free(OMAP_CYTTSP_RESET_GPIO);
+        }
 	gpio_direction_input(OMAP_CYTTSP_GPIO);
 	/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
 
