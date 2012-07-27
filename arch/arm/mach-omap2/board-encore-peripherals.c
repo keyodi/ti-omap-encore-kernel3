@@ -153,8 +153,8 @@ int ft5x06_dev_init(int resource)
 }
 
 static struct ft5x06_platform_data ft5x06_platform_data = {
-	.maxx = 1024,
-	.maxy = 600,
+	.maxx = 600,
+	.maxy = 1024,
 	.flags = 0,
 	.reset_gpio = OMAP_FT5x06_RESET_GPIO,
 	.use_st = FT_USE_ST,
@@ -164,27 +164,33 @@ static struct ft5x06_platform_data ft5x06_platform_data = {
 	.use_gestures = 0,
 };
 
-static int cyttsp_dev_init(void)
+int cyttsp_dev_init(int resource)
 {
-	if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
-		printk(KERN_ERR "can't get tma340 xreset GPIO\n");
-		return -1;
-	}
+	if (resource) {
+		if (gpio_request(OMAP_CYTTSP_RESET_GPIO, "tma340_reset") < 0) {
+			printk(KERN_ERR "can't get tma340 xreset GPIO\n");
+			return -1;
+		}
 
-	if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
-		printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
-		return -1;
-	}
+		if (gpio_request(OMAP_CYTTSP_GPIO, "cyttsp_touch") < 0) {
+			printk(KERN_ERR "can't get cyttsp interrupt GPIO\n");
+			return -1;
+		}
 
-	gpio_direction_input(OMAP_CYTTSP_GPIO);
-	/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
+		gpio_direction_input(OMAP_CYTTSP_GPIO);
+		/* omap_set_gpio_debounce(OMAP_CYTTSP_GPIO, 0); */
+
+	} else {
+		gpio_free(OMAP_CYTTSP_GPIO);
+		gpio_free(OMAP_CYTTSP_RESET_GPIO);
+	}
 
 	return 0;
 }
 
 static struct cyttsp_platform_data cyttsp_platform_data = {
 	.name = CY_I2C_NAME,
-	.init = cyttsp_dev_init,
+	//.init = cyttsp_dev_init,
 	.maxx = 600,
 	.maxy = 1024,
 	.use_hndshk = 0 /*CY_SEND_HNDSHK*/,

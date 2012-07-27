@@ -70,6 +70,8 @@
 #define CY_MAX_FINGER			4
 #define CY_MAX_ID			16
 
+int cyttsp_dev_init(int resource);
+
 static const u8 bl_command[] = {
 	0x00,			/* file offset */
 	0xFF,			/* command */
@@ -524,10 +526,17 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	struct cyttsp *ts;
 	struct input_dev *input_dev;
 	int error;
+	int retval = 0;
 
 	if (!pdata || !pdata->name || irq <= 0) {
 		error = -EINVAL;
 		goto err_out;
+	}
+
+	// request gpio resources
+	if (cyttsp_dev_init(1) < 0) {
+		retval = -ENODEV;
+		goto exit;
 	}
 
 	ts = kzalloc(sizeof(*ts) + xfer_buf_size, GFP_KERNEL);
@@ -603,6 +612,14 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 
 	return ts;
 
+exit:
+	printk("cyttsp:Start Probe %s\n", \
+		(retval < 0) ? "FAIL" : "PASS");
+
+	if(retval > 0)
+		retval = 0;
+
+	return ERR_PTR(retval);
 err_free_irq:
 	free_irq(ts->irq, ts);
 err_platform_exit:
@@ -611,6 +628,7 @@ err_platform_exit:
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(ts);
+	cyttsp_dev_init(0);
 err_out:
 	return ERR_PTR(error);
 }
