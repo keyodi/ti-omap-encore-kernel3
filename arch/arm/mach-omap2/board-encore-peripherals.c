@@ -129,11 +129,8 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 
 int ft5x06_dev_init(int resource)
 {
-	if (resource){
-		omap_mux_init_signal("cam_d0.gpio_99", OMAP_PIN_INPUT | OMAP_PIN_OFF_WAKEUPENABLE);
-		omap_mux_init_signal("gpmc_d10.gpio_46", OMAP_PIN_OUTPUT );
-
-		if (gpio_request(OMAP_FT5x06_RESET_GPIO, "ft5x06_reset") < 0){
+	if (resource) {
+		if (gpio_request(OMAP_FT5x06_RESET_GPIO, "ft5x06_reset") < 0) {
 			printk(KERN_ERR "can't get ft5x06 xreset GPIO\n");
 			return -1;
 		}
@@ -755,14 +752,7 @@ static int __init omap_i2c_init(void)
 	return 0;
 }
 
-static void enable_board_wakeup_source(void)
-{
-	/* T2 interrupt line (keypad) */
-	omap_mux_init_signal("sys_nirq",
-		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
-}
-
-void __init zoom_peripherals_init(void)
+void __init encore_peripherals_init(void)
 {
 	platform_add_devices(encore_board_devices,
 		ARRAY_SIZE(encore_board_devices));
@@ -770,7 +760,6 @@ void __init zoom_peripherals_init(void)
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
-	enable_board_wakeup_source();
 	omap_serial_init();
 
 	max8903_charger_init();

@@ -39,12 +39,11 @@
 #define ZOOM3_EHCI_RESET_GPIO		64
 #define ZOOM3_McBSP3_BT_GPIO            164
 #define ENCORE_BT_RESET_GPIO            60
-#define ZOOM3_WIFI_PMENA_GPIO		22
-#define ZOOM3_WIFI_IRQ_GPIO		15
+#define ENCORE_WIFI_IRQ_GPIO		15
 
 #define WILINK_UART_DEV_NAME            "/dev/ttyO1"
 
-static void __init omap_zoom_init_early(void)
+static void __init omap_encore_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
@@ -114,7 +113,7 @@ static struct platform_device btwilink_device = {
 	.id = -1,
 };
 
-static struct platform_device *zoom_devices[] __initdata = {
+static struct platform_device *encore_devices[] __initdata = {
 	&wl127x_device,
 	&btwilink_device,
 };
@@ -143,51 +142,34 @@ fail:
 	return ret;
 }
 
-static void config_wlan_mux(void)
-{
-	/* WLAN PW_EN and IRQ */
-	omap_mux_init_gpio(ZOOM3_WIFI_PMENA_GPIO, OMAP_PIN_OUTPUT);
-	omap_mux_init_gpio(ZOOM3_WIFI_IRQ_GPIO, OMAP_PIN_INPUT |
-				OMAP_PIN_OFF_WAKEUPENABLE);
-
-	/* MMC3 */
-	omap_mux_init_signal("etk_clk.sdmmc3_clk", OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("mcspi1_cs1.sdmmc3_cmd", OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("etk_d4.sdmmc3_dat0", OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("etk_d5.sdmmc3_dat1", OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("etk_d6.sdmmc3_dat2", OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("etk_d3.sdmmc3_dat3", OMAP_PIN_INPUT_PULLUP);
-}
-
-static struct wl12xx_platform_data zoom3_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(ZOOM3_WIFI_IRQ_GPIO),
+static struct wl12xx_platform_data encore_wlan_data __initdata = {
+	.irq = OMAP_GPIO_IRQ(ENCORE_WIFI_IRQ_GPIO),
 	.board_ref_clock = WL12XX_REFCLOCK_38,
 };
 
-static void zoom3_wifi_init(void)
+static void encore_wifi_init(void)
 {
-	config_wlan_mux();
-	if (wl12xx_set_platform_data(&zoom3_wlan_data))
+	if (wl12xx_set_platform_data(&encore_wlan_data))
 		pr_err("Error setting wl12xx data\n");
 }
 
-static void __init omap_zoom_init(void)
+static void __init omap_encore_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
 	//omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
 	//omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
 	//usbhs_init(&usbhs_bdata);
 
-	zoom3_wifi_init();
-	zoom_peripherals_init();
+	encore_wifi_init();
+	encore_peripherals_init();
 	encore_display_init();
 	omap_register_ion();
-	/* Added to register zoom devices */
-	platform_add_devices(zoom_devices, ARRAY_SIZE(zoom_devices));
+	/* Added to register encore devices */
+	platform_add_devices(encore_devices, ARRAY_SIZE(encore_devices));
 	wl127x_vio_leakage_fix();
 }
 
-static void __init zoom_reserve(void)
+static void __init encore_reserve(void)
 {
 	omap_init_ram_size();
 	/* do the static reservations first */
@@ -205,10 +187,10 @@ static void __init zoom_reserve(void)
 
 MACHINE_START(ENCORE, "encore")
 	.boot_params	= 0x80000100,
-	.reserve	= zoom_reserve,
+	.reserve	= encore_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_zoom_init_early,
+	.init_early	= omap_encore_init_early,
 	.init_irq	= omap_init_irq,
-	.init_machine	= omap_zoom_init,
+	.init_machine	= omap_encore_init,
 	.timer		= &omap_timer,
 MACHINE_END

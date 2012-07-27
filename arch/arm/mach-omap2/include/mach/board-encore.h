@@ -3,8 +3,7 @@
  */
 #include <video/omapdss.h>
 
-extern int __init zoom_debugboard_init(void);
-extern void __init zoom_peripherals_init(void);
+extern void __init encore_peripherals_init(void);
 extern void __init encore_display_init(void);
 
 #define BOARD_ENCORE_REV_EVT1A      0x1
@@ -17,8 +16,6 @@ extern void __init encore_display_init(void);
 #define EVT2  3
 #define DVT   4
 #define PVT   5
-
-#define MACH_TYPE_OMAP3621_EVT1A       3003
 
 extern int has_3G_support(void);
 extern int has_1GHz_support(void);
