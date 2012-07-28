@@ -2024,8 +2024,8 @@ static struct snd_soc_codec_driver aic31xx_codec = {
 	.reg_cache_default = aic31xx_reg,
 	.probe = aic31xx_probe,
 	.remove = aic31xx_remove,
-	.suspend = aic31xx_suspend,
-	.resume = aic31xx_resume,
+	.suspend = NULL, //aic31xx_suspend,
+	.resume = NULL, //aic31xx_resume,
 };
 
 /*
