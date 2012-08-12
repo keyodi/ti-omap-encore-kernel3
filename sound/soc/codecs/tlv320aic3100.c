@@ -110,14 +110,7 @@ static int __new_control_get(struct snd_kcontrol *,
 static int __new_control_put(struct snd_kcontrol *,
 				struct snd_ctl_elem_value *);
 static int aic31xx_dac_mute(struct snd_soc_codec *codec, int mute);
-static int dac3100_power_down(struct snd_soc_codec *codec);
-static int dac3100_power_up(struct snd_soc_codec *codec);
-
-static int right_dac_gain	= 0xFC;
-static int left_dac_gain	= 0xFC;
-static int hp_r_analog_gain	= 0x9E;
-static int hp_l_analog_gain	= 0x9E;
-static int spkr_analog_gain	= 0x80;
+static struct snd_soc_codec *codec_work_var_glob;
 
 #define NUM_INIT_REGS (sizeof(aic31xx_reg_init) /       \
 				sizeof(struct aic31xx_configs))
@@ -139,7 +132,8 @@ static int spkr_analog_gain	= 0x80;
 			.private_value = (reg_left) | ((shift) << 8)  | \
 			((mask) << 12) | ((invert) << 20) | ((reg_right) << 24)}
 
-#define	AIC31xx_CACHEREGNUM 256
+
+#define	AIC31xx_CACHEREGNUM (ARRAY_SIZE(aic31xx_reg))
 
 static u8 aic31xx_reg_ctl;
 
@@ -166,153 +160,67 @@ struct i2c_msg i2c_left_transaction[120];
  * mclk, rate, p_val, pll_j, pll_d, dosr, ndac, mdac, aosr, nadc, madc, blck_N
  */
 static const struct aic31xx_rate_divs aic31xx_divs[] = {
-/*
- * mclk, rate, p_val, pll_j, pll_d, dosr, ndac, mdac, aosr, nadc, madc, blck_N,
- * codec_speficic_initializations
- */
 	/* 8k rate */
-	// DDenchev (MMS)
-	{12000000, 8000, 1, 7, 1680, 128, 2, 42, 4,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 1}}},
-	{13000000, 8000, 1, 6, 3803, 128, 3, 27, 4,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 4}}},
-	{24000000, 8000, 2, 7, 6800, 768, 15, 1, 24,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
+	{13000000, 8000, 1, 6, 3803, 128, 16, 1, 128, 48, 2, 24},
 	/* 11.025k rate */
-	// DDenchev (MMS)
-	{12000000, 11025, 1, 7, 560, 128, 5, 12, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 11025, 1, 6, 1876, 128, 3, 19, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-	{24000000, 11025, 2, 7, 5264, 512, 16, 1, 16,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
-	/* 12k rate */
-	// DDenchev (MMS)
-	{12000000, 12000, 1, 7, 1680, 128, 2, 28, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 12000, 1, 6, 3803, 128, 3, 18, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-
+	{13000000, 11025, 1, 6, 1876, 128, 15, 2, 128, 30, 2, 8},
+	/* 12K rate */
+	{13000000, 12000, 1, 6, 3803, 128, 15, 2, 128, 30, 2, 8},
 	/* 16k rate */
-	// DDenchev (MMS)
-	{12000000, 16000, 1, 7, 1680, 128, 2, 21, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 16000, 1, 6, 6166, 128, 3, 14, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-	{24000000, 16000, 2, 7, 6800, 384, 15, 1, 12,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
+	{13000000, 16000, 1, 6, 6166, 128, 12, 2, 128, 24, 2, 8},
 	/* 22.05k rate */
-	// DDenchev (MMS)
-	{12000000, 22050, 1, 7, 560, 128, 5, 6, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 22050, 1, 6, 5132, 128, 3, 10, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-	{24000000, 22050, 2, 7, 5264, 256, 16, 1, 8,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
+	{13000000, 22050, 1, 6, 5153, 128, 8, 2, 128, 16, 2, 8},
 	/* 24k rate */
-	// DDenchev (MMS)
-	{12000000, 24000, 1, 7, 1680, 128, 2, 14, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 24000, 1, 6, 3803, 128, 3, 9, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-
+	{13000000, 24000, 1, 6, 3803, 128, 8, 2, 128, 16, 2, 8},
 	/* 32k rate */
-	// DDenchev (MMS)
-	{12000000, 32000, 1, 6, 1440, 128, 2, 9, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 32000, 1, 6, 6166, 128, 3, 7, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-	{24000000, 32000, 2, 7, 1680, 192, 7, 2, 6,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
+	{13000000, 32000, 1, 6, 6166, 128, 6, 2, 128, 12, 2, 8},
 	/* 44.1k rate */
-	// DDenchev (MMS)
-	{12000000, 44100, 1, 7, 560, 128, 5, 3, 4,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 1}}},
-	{13000000, 44100, 1, 6, 5132, 128, 3, 5, 4,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 4}}},
-	{24000000, 44100, 2, 7, 5264, 128, 8, 2, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
+	{13000000, 44100, 1, 6, 5153, 128, 4, 4, 128, 8, 2, 4},
 	/* 48k rate */
-	// DDenchev (MMS)
-	{12000000, 48000, 1, 7, 1680, 128, 2, 7, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-	{13000000, 48000, 1, 6, 6166, 128, 7, 2, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 4}}},
-	{24000000, 48000, 2, 8, 1920, 128, 8, 2, 4,
-	 {{DAC_PRB_SEL_REG, 1}, {61, 1}}},
-
-	/*96k rate : GT 21/12/2009: NOT MODIFIED */
-	{12000000, 96000, 1, 8, 1920, 64, 2, 8, 2,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 7}}},
-	{13000000, 96000, 1, 6, 6166, 64, 7, 2, 2,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 10}}},
-	{24000000, 96000, 2, 8, 1920, 64, 4, 4, 2,
-	 {{DAC_PRB_SEL_REG, 7}, {61, 7}}},
-
-	/*192k : GT 21/12/2009: NOT MODIFIED */
-	{12000000, 192000, 1, 8, 1920, 32, 2, 8, 1,
-	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
-	{13000000, 192000, 1, 6, 6166, 32, 7, 2, 1,
-	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
-	{24000000, 192000, 2, 8, 1920, 32, 4, 4, 1,
-	 {{DAC_PRB_SEL_REG, 17}, {61, 13}}},
+	{13000000, 48000, 1, 6, 6166, 128, 4, 4, 128, 8, 2, 4},
+	/*96k rate */
+	{13000000, 96000, 1, 6, 6166, 64, 2, 2, 128, 4, 2, 8},
+	/*192k */
+	{13000000, 192000, 1, 6, 6166, 32, 2, 1, 128, 4, 1, 16},
 };
 
 /* Caching the register values */
-static const u8 aic31xx_reg[AIC31xx_CACHEREGNUM] = {
-	0x00, 0x00, 0x00, 0x02,	/* 0 */
-	0x00, 0x11, 0x04, 0x00,	/* 4 */
-	0x00, 0x00, 0x00, 0x01,	/* 8 */
-	0x01, 0x00, 0x80, 0x80,	/* 12 */
-	0x08, 0x00, 0x01, 0x01,	/* 16 */
-	0x80, 0x80, 0x04, 0x00,	/* 20 */
-	0x00, 0x00, 0x01, 0x00,	/* 24 */
-	0x00, 0x00, 0x01, 0x00,	/* 28 */
-	0x00, 0x00, 0x00, 0x00,	/* 32 */
-	0x00, 0x00, 0x00, 0x00,	/* 36 */
-	0x00, 0x00, 0x00, 0x00,	/* 40 */
-	0x00, 0x00, 0x00, 0x00,	/* 44 */
-	0x00, 0x00, 0x00, 0x00,	/* 48 */
-//	0x00, 0x02, 0x02, 0x00,	/* 52 */
-	0x00, 0x00, 0x02, 0x00,	/* 52 */
-	0x00, 0x00, 0x00, 0x00,	/* 56 */
-	0x01, 0x04, 0x00, 0x14,	/* 60 */
-	0x0C, 0x00, 0x00, 0x00,	/* 64 */
-	0x0F, 0x38, 0x00, 0x00,	/* 68 */
-	0x00, 0x00, 0x00, 0xEE,	/* 72 */
-	0x10, 0xD8, 0x7E, 0xE3,	/* 76 */
-	0x00, 0x00, 0x80, 0x00,	/* 80 */
-	0x00, 0x00, 0x00, 0x00,	/* 84 */
-//	0x7F, 0x00, 0x00, 0x00,	/* 88 */
-	0x00, 0x00, 0x00, 0x00,	/* 88 */
-	0x00, 0x00, 0x00, 0x00,	/* 92 */
-	0x00, 0x00, 0x00, 0x00,	/* 96 */
-	0x00, 0x00, 0x00, 0x00,	/* 100 */
-	0x00, 0x00, 0x00, 0x00,	/* 104 */
-	0x00, 0x00, 0x00, 0x00,	/* 108 */
-	0x00, 0x00, 0x00, 0x00,	/* 112 */
-	0x00, 0x00, 0x00, 0x00,	/* 116 */
-	0x00, 0x00, 0x00, 0x00,	/* 120 */
-	0x00, 0x00, 0x00, 0x00,	/* 124 - PAGE0 Registers(127) ends here */
-	0x00, 0x00, 0x00, 0x00,	/* 128, PAGE1-0 */
-	0x00, 0x00, 0x00, 0x00,	/* 132, PAGE1-4 */
-	0x00, 0x00, 0x00, 0x00,	/* 136, PAGE1-8 */
-	0x00, 0x00, 0x00, 0x00,	/* 140, PAGE1-12 */
-	0x00, 0x00, 0x00, 0x00,	/* 144, PAGE1-16 */
-	0x00, 0x00, 0x00, 0x00,	/* 148, PAGE1-20 */
-	0x00, 0x00, 0x00, 0x00,	/* 152, PAGE1-24 */
-	0x00, 0x00, 0x00, 0x04,	/* 156, PAGE1-28 */
-	0x06, 0x3E, 0x00, 0x00,	/* 160, PAGE1-32 */
-	0x7F, 0x7F, 0x7F, 0x7F,	/* 164, PAGE1-36 */
-	0x02, 0x02, 0x00, 0x00,	/* 168, PAGE1-40 */
-	0x00, 0x00, 0x00, 0x80,	/* 172, PAGE1-44 */
-	0x00, 0x00, 0x00,	/* 176, PAGE1-48 */
+static const u8 aic31xx_reg[] = {
+	/* Page 0 Register */
+	0x00, 0x00, 0x02, 0x00, 0x00, 0x11, 0x04, 0x00,
+	0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x80, 0x80,
+	0x08, 0x00, 0x01, 0x01, 0x80, 0x80, 0x04, 0x00,
+	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x02, 0x00,
+	0x02, 0x00, 0x00, 0x00, 0x01, 0x04, 0x00, 0x14,
+	0x0C, 0x00, 0x00, 0x00, 0x0F, 0x38, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0xEE, 0x10, 0xD8, 0x7E, 0x73,
+	0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	/* Page 1 Registers */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+	0x05, 0x3E, 0x00, 0x00, 0x7F, 0x7F, 0x7F, 0x7F,
+	0x02, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
 /*
@@ -324,64 +232,66 @@ static const u8 aic31xx_reg[AIC31xx_CACHEREGNUM] = {
  * in aic31xx_init() function only.
  */
 static const struct aic31xx_configs aic31xx_reg_init[] = {
-/* Carry out the software reset */
-//	{RESET, 0x01},
-//	{RESET, 0x00},
-	/* Connect MIC1_L and MIC1_R to CM */
-//	{MICPGA_CM, 0xC0},
-	/* PLL is CODEC_CLKIN */
-	{CLK_REG_1, PLLCLK_2_CODEC_CLKIN},
-        /* Switch off PLL */
-        {CLK_REG_2,  0x00},
-        {CLK_REG_3,  0x00},
-        {CLK_REG_4,  0x00},
-        {CLK_REG_5,  0x00},
-        /* Switch off NDAC and MDAC and BCLK_N Dividers */
-        {NDAC_CLK_REG, 0x00},
-        {MDAC_CLK_REG,  0x00},
-        {DAC_OSR_MSB,     0x00},
-        {DAC_OSR_LSB,     0x00},
+
+	/* Clock settings */
+	{CLK_REG_1, CODEC_MUX_VALUE},
+
+	/* Switch off PLL while Initiazling Codec */
+	{INTERFACE_SET_REG_1, BCLK_DIR_CTRL},
+
         /* DAC_MOD_CLK is BCLK source */
 	{INTERFACE_SET_REG_2, DAC_MOD_CLK_2_BDIV_CLKIN},
+
+	/* Configuring HP in Line out Mode */
+	{HP_DRIVER_CTRL, 0x06},
+
+	/* HP pop removal settings */
+	{HP_POP_CTRL, (BIT7 | HP_POWER_UP_15_3_MSEC | HP_RAMP_UP_STIME_3_9MS |
+			    HP_BANDGAP_COMMON_MODE)},
+
+	/* Speaker Ramp up time scaled to 30.5ms */
+        {PGA_RAMP_CTRL, 0x70},
+
+	/* Headset Detect setting */
+	{INTL_CRTL_REG_1, 0xC0},
+
+	/* short circuit protection of HP and Speaker power bits */
+	{HP_SPK_ERR_CTL, 3},
+
+	/* Headset detection enabled by default and Debounce programmed to 32 ms
+	 * for Headset Detection and 32ms for Headset button-press Detection
+	 */
+	{HEADSET_DETECT, (HP_DEBOUNCE_32_MS | HS_DETECT_EN |
+					HS_BUTTON_PRESS_32_MS)},
+
+	/* DAC PRB configured to PRB_2 */
+	{DAC_PRB_SEL_REG, 0x02},
+
+	/*DRC settings */
+	{DRC_CTRL_3, 0xB6},
+	{DRC_CTRL_2, 0x00},
+	{DRC_CTRL_1, 0x1A}, /* Increased Threshold to -21db */
 
 	/* Switch off BCLK_N Divider */
 	{BCLK_N_VAL, 0x00},
 
 	/* Setting up DAC Channel */
 	{DAC_CHN_REG, LDAC_2_LCHN | RDAC_2_RCHN},
+
 	/* Mistral: Updated this value from 0x00 to 0x0C to MUTE DAC Left and Right channels */
 	{DAC_MUTE_CTRL_REG, 0x0C},
 
-        /* Mistral Added following configuration for EQ Setup */
-        /* Mistral: Updated the DACR volume also to -6dB */
-	/* Update DACL volume control from -6db to -1.5db to get speaker
-	   and Headphone volume loud enough on Encore device */
-        {LDAC_VOL, 0xFC},
-	/* Update DACR volume control from -6db to -1.5db to get speaker
-	   and Headphone volume loud enough on Encore device */
-        {RDAC_VOL, 0xFC},
 	/* Configure the DAC Volume to default settings */
         {VOL_MICDECT_ADC, 0x00},
-
-        /* reg[1][42] should be configured at 0x04. This is already done above */
-        /* reg[1][35] should be configured correctly. This is already done above */
-        /* reg[1][32] should be powered up, Will be done at run-time */
-        /* reg[1][38] should be routed to Class-D Output Driver. This is already done above */
 
         /* Headphone drivers */
 	/* 0xCC Mistral: Updated this value from 0xC4. We do not need to Power
 	   up HPL and HPR at startup */
 	{HEADPHONE_DRIVER, 0x04},
+
 	/* Mistral: Updated this value from 0xc6 to 0x06 */
 	{CLASSD_SPEAKER_AMP, 0x06},
-	/* Headphone powerup */
-	/* Mistral modified value to power down DAC after HP and SPK Amplifiers */
-	{HP_POP_CTRL, (BIT7 | HP_POWER_UP_15_3_MSEC 
-                      | HP_RAMP_UP_STIME_3_9MS 
-                      | HP_BANDGAP_COMMON_MODE)},
 
-	/* Speaker Ramp up time scaled to 30.5ms */
-        {PGA_RAMP_CTRL, 0x70},
 	/* DAC_L and DAC_R Output Mixer Routing */
 	/* DAC_X is routed to the channel mixer amplifier */
 	{DAC_MIX_CTRL, 0x44},
@@ -399,14 +309,11 @@ static const struct aic31xx_configs aic31xx_reg_init[] = {
 	{HPR_DRIVER, 0x00},
 	/* Keep the Speaker driver in MUTE State by Default */
         {SPL_DRIVER, 0x00},
-	/* Configured the default value to 0x00 */
-	{HP_DRIVER_CTRL, 0x00},
 };
 
 /*
  * soc_enum array Structure Initialization
  */
-
 static char const *dac_mute[] = {"Unmute", "Mute"};
 static char const *dacvoltage_control[] = {"1.35 V", "1.5 V ", "1.65 V", "1.8 V"};
 static char const *drc_enable[] = {"Disabled", "Enabled"};
@@ -418,33 +325,23 @@ static const struct soc_enum aic31xx_enum[] = {
 	SOC_ENUM_DOUBLE(DRC_CTRL_1, 6, 5, 2, drc_enable),
 };
 
+static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6350, 50, 0);
+static const DECLARE_TLV_DB_SCALE(class_D_drv_tlv, 600, 600, 0);
+static const DECLARE_TLV_DB_SCALE(hp_vol_tlv, -7830, 60, 0);
+static const DECLARE_TLV_DB_SCALE(sp_vol_tlv, -7830, 60, 0);
+
 /*
  * controls that need to be exported to the user space
  */
 static const struct snd_kcontrol_new aic31xx_snd_controls[] = {
-	/* Output */
-	/* sound new kcontrol for PCM Playback volume control */
-	SOC_DOUBLE_R_AIC31xx("DAC Playback Volume", LDAC_VOL, RDAC_VOL, 0, 0xAf,
-			     0),
-	/* sound new kcontrol for HP driver gain */
-	SOC_DOUBLE_R_AIC31xx("HP Driver Gain", HPL_DRIVER, HPR_DRIVER, 0, 0x23, 0),
-	/* sound new kcontrol for LO driver gain */
-	SOC_DOUBLE_R_AIC31xx("LO Driver Gain", SPL_DRIVER, SPR_DRIVER, 0, 0x23, 0),
-	/* sound new kcontrol for HP mute */
-	SOC_DOUBLE_R("HP DAC Playback Switch", HPL_DRIVER, HPR_DRIVER, 2,
-		     0x01, 1),
-	/* sound new kcontrol for LO mute */
-	SOC_DOUBLE_R("LO DAC Playback Switch", SPL_DRIVER, SPR_DRIVER, 2,
-		     0x01, 1),
+	/* DAC Volume Control */
+	 SOC_DOUBLE_R_SX_TLV("DAC Playback Volume", LDAC_VOL, RDAC_VOL, 8,
+						0xffffff81, 0x30, dac_vol_tlv),
+	/* HP driver mute control */
+	SOC_DOUBLE_R("HP driver mute", HPL_DRIVER, HPR_DRIVER, 2, 2, 0),
 
-	/* sound new kcontrol for Analog Volume Control for headphone and Speaker Outputs
-         * Please refer to Table 5-24 of the Codec DataSheet
-         */
-        SOC_DOUBLE_R_AIC31xx("HP Analog Volume",   L_ANLOG_VOL_2_HPL, R_ANLOG_VOL_2_HPR, 0, 0x7F, 1),
-        SOC_DOUBLE_R_AIC31xx("SPKR Analog Volume", L_ANLOG_VOL_2_SPL, R_ANLOG_VOL_2_SPR, 0, 0x7F, 1),
-
-	/* sound new kcontrol for Programming the registers from user space */
-	SOC_SINGLE_AIC31xx("Program Registers"),
+	/* SPK driver mute control */
+	SOC_SINGLE("SP driver mute", SPL_DRIVER, 2, 2, 0),
 
         /* Enumerations SOCs Controls */
         SOC_ENUM ("LEFT  DAC MUTE", aic31xx_enum[LMUTE_ENUM]),
@@ -457,38 +354,43 @@ static const struct snd_kcontrol_new aic31xx_snd_controls[] = {
         SOC_SINGLE ("DRC Threshold Value (0=-3db,7=-24db)",  DRC_CTRL_1, 2, 0x07, 0),
         SOC_SINGLE ("DRC Hold Time",   DRC_CTRL_2, 3, 0x0F, 0),
         SOC_SINGLE ("DRC Attack Time", DRC_CTRL_3, 4, 0x0F, 0),
-        SOC_SINGLE ("DRC Delay Rate",  DRC_CTRL_3, 0, 0x0F, 0),
+	SOC_SINGLE ("DRC Delay Rate",  DRC_CTRL_3, 0, 0x0F, 0),
 
+	/* Added for Debugging */
+	SOC_SINGLE("LoopBack_Control", INTERFACE_SET_REG_2, 4, 4, 0),
+
+	/* SP Class-D driver output stage gain Control */
+	SOC_SINGLE_TLV("Class-D driver Vol", SPL_DRIVER, 3, 0x04, 0,
+							class_D_drv_tlv),
+
+	/* HP Analog Gain Volume Control */
+	SOC_DOUBLE_R_TLV("HP Analog Gain", L_ANLOG_VOL_2_HPL,
+			R_ANLOG_VOL_2_HPR, 0, 0x7F, 1, hp_vol_tlv),
+
+	/* SP Analog Gain Volume Control */
+	SOC_SINGLE_TLV("SP Analog Gain(0 = 0 dB, 127 = -78.3 dB)",
+			L_ANLOG_VOL_2_SPL, 0, 0x7F, 1, sp_vol_tlv),
+
+	/* Program Registers */
+	SOC_SINGLE_AIC31xx("Program Registers"),
 };
 
 /*
  * DAPM Mixer Controls
  */
-/* Left DAC_L Mixer */
-static const struct snd_kcontrol_new hpl_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE("L_DAC switch", DAC_MIX_CTRL, 6, 2, 1),
-	SOC_DAPM_SINGLE("MIC1_L switch", DAC_MIX_CTRL, 5, 1, 0),
-//	SOC_DAPM_SINGLE("Left_Bypass switch", HPL_ROUTE_CTL, 1, 1, 0),
+/* Left Output Mixer */
+static const struct snd_kcontrol_new
+left_output_mixer_controls[] = {
+	SOC_DAPM_SINGLE("From DAC_L", DAC_MIX_CTRL, 6, 1, 0),
+	SOC_DAPM_SINGLE("From MIC1LP", DAC_MIX_CTRL, 5, 1, 0),
+	//SOC_DAPM_SINGLE("From MIC1RP", DAC_MIX_CTRL, 4, 1, 0),
 };
 
-/* Right DAC_R Mixer */
-static const struct snd_kcontrol_new hpr_output_mixer_controls[] = {
-
-	SOC_DAPM_SINGLE("R_DAC switch", DAC_MIX_CTRL, 2, 2, 1),
-	SOC_DAPM_SINGLE("MIC1_R switch", DAC_MIX_CTRL, 1, 1, 0),
-//	SOC_DAPM_SINGLE("Right_Bypass switch", HPR_ROUTE_CTL, 1, 1, 0),
-};
-
-static const struct snd_kcontrol_new lol_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE("L_DAC switch", DAC_MIX_CTRL, 6, 2, 1),
-	SOC_DAPM_SINGLE("MIC1_L switch", DAC_MIX_CTRL, 5, 1, 0),
-//	SOC_DAPM_SINGLE("Left_Bypass switch", HPL_ROUTE_CTL, 1, 1, 0),
-};
-
-static const struct snd_kcontrol_new lor_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE("R_DAC switch", DAC_MIX_CTRL, 2, 2, 1),
-	SOC_DAPM_SINGLE("MIC1_R switch", DAC_MIX_CTRL, 1, 1, 0),
-//	SOC_DAPM_SINGLE("Right_Bypass switch", LOR_ROUTE_CTL, 1, 1, 0),
+/* Right Output Mixer - Valid only for AIC31xx,3110,3100 */
+static const struct
+snd_kcontrol_new right_output_mixer_controls[] = {
+	SOC_DAPM_SINGLE("From DAC_R", DAC_MIX_CTRL, 2, 1, 0),
+	SOC_DAPM_SINGLE("From MIC1RP", DAC_MIX_CTRL, 1, 1, 0),
 };
 
 /* Right DAC_R Mixer */
@@ -502,48 +404,171 @@ static const struct snd_kcontrol_new right_input_mixer_controls[] = {
 	SOC_DAPM_SINGLE("MIC1_M switch", MIC_GAIN, 2, 1, 0),
 };
 
-/* Left Output Mixer */
-static const struct snd_kcontrol_new
-left_output_mixer_controls[] = {
-	SOC_DAPM_SINGLE("From DAC_L", DAC_MIX_CTRL, 6, 1, 0),
-	SOC_DAPM_SINGLE("From MIC1LP", DAC_MIX_CTRL, 5, 1, 0),
-	SOC_DAPM_SINGLE("From MIC1RP", DAC_MIX_CTRL, 4, 1, 0),
-};
+static int pll_power_on_event(struct snd_soc_dapm_widget *w, \
+			struct snd_kcontrol *kcontrol, int event)
+{
+	if (event == (SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD))
+		mdelay(10);
+	return 0;
+}
+
+static int aic31xx_dac_power_up_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	u8 counter, value;
+	struct snd_soc_codec *codec = w->codec;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+
+		/* Check for the DAC FLAG register to know if the DAC is really
+		 * powered up
+		 */
+		counter = 0;
+		do {
+			mdelay(1);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+			DBG("##DACEn Poll\r\n");
+		} while ((counter < 20) && ((value & 0x88) == 0));
+
+	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
+
+		/* Check for the DAC FLAG register to know if the DAC is
+		 * powered down
+		 */
+		counter = 0;
+		do {
+			mdelay(1);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+			DBG("##DAC switched off\r\n");
+		} while ((counter < 20) && ((value | 0x00) == 0));
+
+	}
+	return 0;
+}
+
+static int aic31xx_hp_power_up_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	u8 counter, value;
+	struct snd_soc_codec *codec = w->codec;
+
+	if (event & SND_SOC_DAPM_PRE_PMU) {
+		DBG(KERN_INFO "pre_pmu: switching to HP\n");
+		codec->write(codec, HP_DRIVER_CTRL, 0x00);
+
+	} else if (event & SND_SOC_DAPM_POST_PMU) {
+
+		/* Check for the DAC FLAG register to know if the HPL & HPR are
+		 * really powered up
+		 */
+		counter = 0;
+		do {
+			mdelay(5);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+		} while ((value & 0x22) == 0);
+		DBG(KERN_INFO "##HPL Power up Iterations %d\r\n", counter);
+
+/*		aic31xx_config_hp_volume(codec, 0); */
+
+	} else if (event & SND_SOC_DAPM_PRE_PMD) {
+		DBG(KERN_INFO "pre_pmd: switching to LO\n");
+		codec->write(codec, HP_DRIVER_CTRL, 0x06);
+
+	} else if (event & SND_SOC_DAPM_POST_PMD) {
+
+		/* Check for the DAC FLAG register to know if the HPL & HPR are
+		 * powered down
+		 */
+		counter = 0;
+		do {
+			mdelay(5);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+		} while ((counter < 10) && ((value & 0x22) != 0));
+		DBG(KERN_INFO "##HPL Power down Iterations %d\r\n", counter);
+
+	}
+	return 0;
+}
+
+static int aic31xx_sp_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	u8 counter, value;
+	struct snd_soc_codec *codec = w->codec;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+
+#ifdef AIC3100_CODEC_SUPPORT
+		/* Change the DAC channel path for mono speakers on AIC3100 */
+		snd_soc_update_bits(codec, DAC_CHN_REG, 0x3C,
+			      (CLEAR | LDAC_LCHN_RCHN_2));
+#endif
+		/* Check for the DAC FLAG register to know if the SPL & SPR are
+		 * really powered up
+		 */
+		counter = 0;
+		do {
+			mdelay(5);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+		} while ((value & 0x11) == 0);
+		DBG(KERN_INFO "##SP Power up Iterations %d\r\n", counter);
+
+	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
+
+#ifdef AIC3100_CODEC_SUPPORT
+		/* Change the DAC channel path for mono speakers on AIC3100 */
+		snd_soc_update_bits(codec, DAC_CHN_REG, 0x3C,
+			 (CLEAR | LDAC_2_LCHN | RDAC_2_RCHN));
+#endif
+		/* Check for the DAC FLAG register to know if the SPL & SPR are
+		 * powered down
+		 */
+		counter = 0;
+		do {
+			mdelay(5);
+			value = codec->read(codec, DAC_FLAG_1);
+			counter++;
+		} while ((counter < 10) && ((value & 0x11) != 0));
+		DBG(KERN_INFO "##SPL Power down Iterations %d\r\n", counter);
+
+	}
+	return 0;
+}
 
 /*
  * DAPM Widget Controls
  */
 static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
-	/* Left DAC to Left Outputs */
-	/* dapm widget (stream domain) for left DAC */
-	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", DAC_CHN_REG, 7, 1),
+	/* DACs */
+	SND_SOC_DAPM_DAC_E("Left DAC", "Left Playback", DAC_CHN_REG, 7, 0,
+			aic31xx_dac_power_up_event, SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_POST_PMD),
 
-	/* dapm widget (path domain) for left DAC_L Mixer */
+	SND_SOC_DAPM_DAC_E("Right DAC", "Right Playback", DAC_CHN_REG, 6, 0,
+			aic31xx_dac_power_up_event, SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("HPL Output Mixer", SND_SOC_NOPM, 0, 0,
-			   &hpl_output_mixer_controls[0],
-			   ARRAY_SIZE(hpl_output_mixer_controls)),
-	SND_SOC_DAPM_PGA("HPL Power", HEADPHONE_DRIVER, 7, 0, NULL, 0),
+	/* Output drivers */
+	SND_SOC_DAPM_PGA_E("HPL Driver", HEADPHONE_DRIVER, 7, 0,
+			NULL, 0, aic31xx_hp_power_up_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_PGA_E("HPR Driver", HEADPHONE_DRIVER, 6, 0,
+			NULL, 0, aic31xx_hp_power_up_event,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_MIXER("LOL Output Mixer", SND_SOC_NOPM, 0, 0,
-			   &lol_output_mixer_controls[0],
-			   ARRAY_SIZE(lol_output_mixer_controls)),
-	SND_SOC_DAPM_PGA("LOL Power", CLASSD_SPEAKER_AMP, 7, 1, NULL, 0),
-
-	/* Right DAC to Right Outputs */
-	/* dapm widget (stream domain) for right DAC */
-	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", DAC_CHN_REG, 6, 1),
-
-	/* dapm widget (path domain) for right DAC_R mixer */
-	SND_SOC_DAPM_MIXER("HPR Output Mixer", SND_SOC_NOPM, 0, 0,
-			   &hpr_output_mixer_controls[0],
-			   ARRAY_SIZE(hpr_output_mixer_controls)),
-	SND_SOC_DAPM_PGA("HPR Power", HEADPHONE_DRIVER, 6, 0, NULL, 0),
-
-	SND_SOC_DAPM_MIXER("LOR Output Mixer", SND_SOC_NOPM, 0, 0,
-			   &lor_output_mixer_controls[0],
-			   ARRAY_SIZE(lor_output_mixer_controls)),
-	SND_SOC_DAPM_PGA("LOR Power", CLASSD_SPEAKER_AMP, 6, 1, NULL, 0),
+	/* For AIC3100 as is mono only left
+	 * channel class-D can be powered up/down
+	 */
+	SND_SOC_DAPM_PGA_E("SPL Class - D", CLASSD_SPEAKER_AMP, 7, 0, NULL, 0,
+			aic31xx_sp_event, SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MIXER("Left Input Mixer", SND_SOC_NOPM, 0, 0,
 			   &left_input_mixer_controls[0],
@@ -553,18 +578,32 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 			   &right_input_mixer_controls[0],
 			   ARRAY_SIZE(right_input_mixer_controls)),
 
+	/* Output Mixers */
+	SND_SOC_DAPM_MIXER("Left Output Mixer", SND_SOC_NOPM, 0, 0,
+			left_output_mixer_controls,
+			ARRAY_SIZE(left_output_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right Output Mixer", SND_SOC_NOPM, 0, 0,
+			right_output_mixer_controls,
+			ARRAY_SIZE(right_output_mixer_controls)),
+
+	/* PLL CLK */
+	SND_SOC_DAPM_SUPPLY("PLLCLK", CLK_REG_2, 7, 0, pll_power_on_event,
+				SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY("CODEC_CLK_IN", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("NDAC_DIV", NDAC_CLK_REG, 7, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MDAC_DIV", MDAC_CLK_REG, 7, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("NADC_DIV", NADC_CLK_REG, 7, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("MADC_DIV", MADC_CLK_REG, 7, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("BCLK_N_DIV", BCLK_N_VAL, 7, 0, NULL, 0),
+
 	/* No widgets are required for ADC since the DAC3100 Audio
          * Codec Chipset does not contain a ADC
          */
 
-	/* dapm widget (platform domain) name for HPLOUT */
+	/* Outputs */
 	SND_SOC_DAPM_OUTPUT("HPL"),
-	/* dapm widget (platform domain) name for HPROUT */
 	SND_SOC_DAPM_OUTPUT("HPR"),
-	/* dapm widget (platform domain) name for LOLOUT */
-	SND_SOC_DAPM_OUTPUT("LOL"),
-	/* dapm widget (platform domain) name for LOROUT */
-	SND_SOC_DAPM_OUTPUT("LOR"),
+	SND_SOC_DAPM_OUTPUT("SPL"),
 
 	/* dapm widget (platform domain) name for MIC1LP */
 	SND_SOC_DAPM_INPUT("MIC1LP"),
@@ -574,55 +613,52 @@ static const struct snd_soc_dapm_widget aic31xx_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC1LM"),
 };
 
-
 /*
  * DAPM audio route definition - Defines an audio route originating at source
  * via control and finishing at sink.
  */
 static const struct snd_soc_dapm_route aic31xx_dapm_routes[] = {
-/* ******** Right Output ******** */
-	{"HPR Output Mixer", "R_DAC switch", "Right DAC"},
-	{"HPR Output Mixer",  "MIC1_R switch", "MIC1RP"},
-	//{"HPR Output Mixer", "Right_Bypass switch", "Right_Bypass"},
+	/* PLL Clock related settings*/
+	{"CODEC_CLK_IN", NULL, "PLLCLK"},
+	{"NDAC_DIV", NULL, "CODEC_CLK_IN"},
+	{"NADC_DIV", NULL, "CODEC_CLK_IN"},
+	{"MDAC_DIV", NULL, "NDAC_DIV"},
+	{"MADC_DIV", NULL, "NADC_DIV"},
+	{"BCLK_N_DIV", NULL, "MADC_DIV"},
+	{"BCLK_N_DIV", NULL, "MDAC_DIV"},
 
-	{"HPR Power", NULL, "HPR Output Mixer"},
-	{"HPR", NULL, "HPR Power"},
+	/* Clocks for DAC */
+	{"Left DAC", NULL, "MDAC_DIV" },
+	{"Right DAC", NULL, "MDAC_DIV"},
+	{"Left DAC", NULL, "BCLK_N_DIV" },
+	{"Right DAC", NULL, "BCLK_N_DIV"},
 
+	/* Left Output */
+	{"Left Output Mixer", "From DAC_L", "Left DAC"},
+	{"Left Output Mixer", "From MIC1LP", "MIC1LP"},
 
-	{"LOR Output Mixer", "R_DAC switch", "Right DAC"},
-	{"LOR Output Mixer",  "MIC1_R switch", "MIC1RP"},
-//	{"LOR Output Mixer", "Right_Bypass switch", "Right_Bypass"},
+	/* Right Output */
+	{"Right Output Mixer", "From DAC_R", "Right DAC"},
+	{"Right Output Mixer", "From MIC1RP", "MIC1RP"},
 
-	{"LOR Power", NULL, "LOR Output Mixer"},
-	{"LOR", NULL, "LOR Power"},
+	/* HPL path */
+	{"HPL Driver", NULL, "Left Output Mixer"},
+	{"HPL", NULL, "HPL Driver"},
 
-	/* ******** Left Output ******** */
-	{"HPL Output Mixer", "L_DAC switch", "Left DAC"},
-	{"HPL Output Mixer", "MIC1_L switch", "MIC1LP"},
-	//{"HPL Output Mixer", "Left_Bypass switch", "Left_Bypass"},
+	/* HPR path */
+	{"HPR Driver", NULL, "Right Output Mixer"},
+	{"HPR", NULL, "HPR Driver"},
 
-	{"HPL Power", NULL, "HPL Output Mixer"},
-	{"HPL", NULL, "HPL Power"},
-
-
-	{"LOL Output Mixer", "L_DAC switch", "Left DAC"},
-	{"LOL Output Mixer", "MIC1_L switch", "MIC1LP"},
-//	{"LOL Output Mixer", "Left_Bypass switch", "Left_Bypass"},
-
-	{"LOL Power", NULL, "LOL Output Mixer"},
-	{"LOL", NULL, "LOL Power"},
-
-	/* ******** terminator ******** */
-	//{NULL, NULL, NULL},
+	/* SPK L path */
+	{"SPL Class - D", NULL, "Left Output Mixer"},
+	{"SPL", NULL, "SPL Class - D"},
 };
 
 #define AIC31xx_DAPM_ROUTE_NUM (sizeof(aic31xx_dapm_routes)/		\
 				sizeof(struct snd_soc_dapm_route))
 
-#ifdef AIC31xx_GPIO_INTR_SUPPORT
 /* GPIO Interrupt Worker Thread related Global Vars */
 static struct work_struct codec_int_work;
-#endif
 
 /*
  * aic31xx_change_page- switch between page 0 and page 1.
@@ -743,199 +779,6 @@ unsigned int aic31xx_read(struct snd_soc_codec *codec, unsigned int reg)
 
 /*
  *----------------------------------------------------------------------------
- * Function : dac3100_power_up
- * Purpose  : This function powers up the codec.
- *
- *----------------------------------------------------------------------------
- */
-static int dac3100_power_up(struct snd_soc_codec *codec)
-{
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
-	u8 value;
-	u8 counter;
-
-	DBG("##++ dac3100_power_up dac3100->master=%d, dac3100->power_status=%d, "
-            "dac3100->headset_connected=%d\n",
-            aic31xx->master, aic31xx->power_status, aic31xx->headset_connected);
-
-	DBG("##dac3100 power up .................\n");
-	//mdelay(2000);
-	/* all power is driven by DAPM system */
-	if (aic31xx->master && (aic31xx->power_status != 1) ) {
-
-		/* WA, enable the gpt11_fclk to avoid audio quality problems
-                   when screen OFF */
-		//clk_enable(gpt11_fclk);
-
-        mdelay(5);
-		/* Switch on PLL */
-		value = aic31xx_read(codec, CLK_REG_2);
-		aic31xx_write(codec, CLK_REG_2, (value | ENABLE_PLL));
-
-		/* Switch on NDAC Divider */
-		value = aic31xx_read(codec, NDAC_CLK_REG);
-		aic31xx_write(codec, NDAC_CLK_REG, value | ENABLE_NDAC);
-
-		/* Switch on MDAC Divider */
-		value = aic31xx_read(codec, MDAC_CLK_REG);
-		aic31xx_write(codec, MDAC_CLK_REG,
-			      value | ENABLE_MDAC);
-
-		/* Switch on BCLK_N Divider */
-		value = aic31xx_read(codec, BCLK_N_VAL);
-		aic31xx_write(codec, BCLK_N_VAL, value | ENABLE_BCLK);
-
-                /* Switch ON Left and Right DACs */
-		value = aic31xx_read(codec, DAC_CHN_REG);
-		aic31xx_write(codec, DAC_CHN_REG, (value | ENABLE_DAC));
-
-        /* Check for the DAC FLAG register to know if the DAC is
-           really powered up */
-        counter = 0;
-        do {
-                mdelay(10);
-                value = aic31xx_read(codec, DAC_FLAG_1);
-                counter++;
-                DBG("##DACEn Poll\r\n");
-        } while ((counter < 20) && ((value & 0x88) == 0));
-
-        DBG("##-- dac3100_power_up\n");
-
-		/* Check whether the Headset or Speaker Driver needs Power Up */
-		if (aic31xx->headset_connected) {
-                        /* It is observed that turning ON Speaker, helps reduce
-                           the pop up noise */
-                        /* Switch ON the Class_D Speaker Amplifier */
-                        value = aic31xx_read(codec, CLASSD_SPEAKER_AMP);
-                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, (value | 0x80));
-
-                        /* Switch ON Left and Right Headphone Drivers */
-                        value = aic31xx_read(codec, HEADPHONE_DRIVER);
-                        aic31xx_write(codec, HEADPHONE_DRIVER, (value | 0xC0)); /* 0xCC */
-
-                        /* Check for the DAC FLAG Register to know if the Left
-                           Output Driver is powered up */
-                        counter = 0;
-                        do {
-                                mdelay (10);
-                                value = aic31xx_read(codec, DAC_FLAG_1);
-                                counter++;
-                                DBG("##HPL Poll..\n");
-                        } while ((value & 0x22) == 0);
-                        DBG("##HPL Power up Iterations %d\r\n", counter);
-                        DBG("##HPR Power Up Iterations %d\n", counter);
-                        //mdelay (60);
-		} else {
-                        /* Left Analog Speaker Volume update */
-                        aic31xx_write(codec, L_ANLOG_VOL_2_SPL, spkr_analog_gain);
-
-                        /* Switch ON the Class_D Speaker Amplifier */
-                        value = aic31xx_read(codec, CLASSD_SPEAKER_AMP);
-                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, (value | 0x80));
-                        mdelay(100);
-                }
-                aic31xx->power_status = 1;
-        }
-
-	return 0;
-}
-
-/*
- *----------------------------------------------------------------------------
- * Function : dac3100_power_down
- * Purpose  : This function powers down the codec.
- *
- *----------------------------------------------------------------------------
- */
-static int dac3100_power_down(struct snd_soc_codec *codec)
-{
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
-	volatile u8 value;
-        volatile u32 counter;
-
-	DBG("##++ dac3100_power_down dac3100->master=%d\n", aic31xx->master);
-
-	if (aic31xx->master && (aic31xx->power_status != 0)) {
-
-		/* Check whether the Headset or Speaker Driver needs Power Down */
-		if(aic31xx->headset_connected) {
-
-                        /* Switch off the Head phone Drivers */
-                        value = aic31xx_read(codec, HEADPHONE_DRIVER);
-                        aic31xx_write(codec, HEADPHONE_DRIVER, (value & ~0xC0)); /* 0xCC */
-
-                        /* Now first check if the HPR is fully powered down */
-                        counter = 0;
-                        do {
-                                mdelay(5);
-                                value = aic31xx_read(codec, DAC_FLAG_1);
-                                counter++;
-                        }while ((counter < 100) && ((value & 0x22) != 0));
-                        DBG ("##HPHONE RIGHT DRIVER Power Down. counter %d\r\n",
-                             counter);
-                        //mdelay(50);
-
-                        DBG("##HPHONE LEFT DRIVER Power Down counter %d \r\n",
-                            counter);
-
-                        value = aic31xx_read(codec, CLASSD_SPEAKER_AMP);
-                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, (value & ~0x80));
-		} else {
-			/* Switch OFF the Class_D Speaker Amplifier */
-			value = aic31xx_read(codec, CLASSD_SPEAKER_AMP);
-			aic31xx_write(codec, CLASSD_SPEAKER_AMP, (value & ~0x80));
-
-                        /* MUTE THE Class-D Speaker Driver */
-                        value = aic31xx_read(codec, SPL_DRIVER);
-                        value &= ~0x04;
-                        aic31xx_write(codec, SPL_DRIVER, value);
-                        DBG ("##SPL_DRIVER MUTE Completed..\r\n");
-	        }
-                /* Switch OFF Left and Right DACs */
-
-		value = aic31xx_read(codec, DAC_CHN_REG);
-		aic31xx_write(codec, DAC_CHN_REG, (value & ~ENABLE_DAC));
-
-                /* Check for the DAC FLAG register to know if the DAC is really
-                   powered down */
-                counter = 0;
-                do {
-                        mdelay(10);
-                        value = aic31xx_read(codec, DAC_FLAG_1);
-                        counter++;
-                } while ((counter < 100) && ((value & 0x88) != 0));
-                DBG ("##Left and Right DAC off Counter %d\r\n", counter);
-
-                /* Switch off BCLK_N Divider */
-		aic31xx_write(codec, BCLK_N_VAL, value & ~ENABLE_BCLK);
-
-                /* Switch off MDAC Divider */
-		value = aic31xx_read(codec, MDAC_CLK_REG);
-		aic31xx_write(codec, MDAC_CLK_REG,
-                              value & ~ENABLE_MDAC);
-
-		/* Switch off NDAC Divider */
-		value = aic31xx_read(codec, NDAC_CLK_REG);
-		aic31xx_write(codec, NDAC_CLK_REG,
-                              value & ~ENABLE_NDAC);
-
-		/* Switch off PLL */
-		value = aic31xx_read(codec, CLK_REG_2);
-		aic31xx_write(codec, CLK_REG_2, (value & ~ENABLE_PLL));
-
-		//if (gpt11_fclk->usecount > 0)
-		//	clk_disable(gpt11_fclk);
-
-		aic31xx->power_status = 0;
-	}
-
-	DBG("##-- dac3100_power_down\n");
-
-	return 0;
-}
-
-/*
- *----------------------------------------------------------------------------
  * Function : debug_print_registers
  * Purpose  : Debug routine to dump all the Registers of Page 0
  *
@@ -979,10 +822,6 @@ void debug_print_registers(struct snd_soc_codec *codec)
 			codec->read(codec, CLASSD_SPEAKER_AMP));
 	DBG("@@@  MIC_PGA (P1 R47) = 0x%x\n\n",
 			codec->read(codec, MIC_PGA));
-	DBG("@@@  ADC_FGA (P0 R82) = 0x%x\n\n",
-			codec->read(codec, ADC_FGA));
-	DBG("@@@  ADC_CGA (P0 R83) = 0x%x\n\n",
-			codec->read(codec, ADC_CGA));
 }
 
 /*
@@ -1059,7 +898,8 @@ static int snd_soc_get_volsw_2r_aic31xx(struct snd_kcontrol *kcontrol,
 	int shift;
 	unsigned short val, val2;
 
-	/* Check the id name of the kcontrol and configure the mask and shift */
+	/* Check the id name of the kcontrol and configure the mask and
+	 * shift */
 	if (!strcmp(kcontrol->id.name, "DAC Playback Volume")) {
 		mask = AIC31xx_8BITS_MASK;
 		shift = 0;
@@ -1137,10 +977,9 @@ static int snd_soc_put_volsw_2r_aic31xx(struct snd_kcontrol *kcontrol,
 	val = ucontrol->value.integer.value[0];
 	val2 = ucontrol->value.integer.value[1];
 
- /* Mistral: This block needs to be revisted */
+	/* TODO: This block needs to be revisted */
 	if (!strcmp(kcontrol->id.name, "DAC Playback Volume")) {
 		val = (val >= 127) ? (val - 127) : (val + 129);
-//		 (val <= 48) ? (val + 127) : (val - 129);
 		val2 = (val2 >= 127) ? (val2 - 127) : (val2 + 129);
 		val_mask = AIC31xx_8BITS_MASK;	/* 8 bits */
 	} else if (!strcmp(kcontrol->id.name, "HP Driver Gain")) {
@@ -1260,53 +1099,79 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock(&aic31xx->mutex);
 
-	dac3100_power_down(codec);
+	/* Setting the playback status.
+	 * Update the capture_stream Member of the Codec's Private structure
+	 * to denote that we will be performing Audio capture from now on.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		aic31xx->playback_status = 1;
+		aic31xx->playback_stream = 1;
+	} else if ((substream->stream != SNDRV_PCM_STREAM_PLAYBACK) &&
+							(codec->active < 2))
+		aic31xx->playback_stream = 0;
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		aic31xx->playback_status = 1;
+		aic31xx->capture_stream = 1;
+	} else if ((substream->stream != SNDRV_PCM_STREAM_CAPTURE) &&
+							(codec->active < 2))
+		aic31xx->capture_stream = 0;
+
 	codec->dapm.bias_level = 2;
 
 	i = aic31xx_get_divs(aic31xx->sysclk, params_rate(params));
-	DBG("##- Sampling rate: %d, %d\n", params_rate(params), i);
-
 
 	if (i < 0) {
 		printk(KERN_ALERT "sampling rate not supported\n");
+		mutex_unlock(&aic31xx->mutex);
 		return i;
 	}
 
 	if (soc_static_freq_config) {
-
-		/* We will fix R value to 1 and will make P & J=K.D as varialble */
+		/*
+		 * We will fix R value to 1 and will make P & J=K.D as
+		 * varialble
+		 */
 
 		/* Setting P & R values */
-		aic31xx_write(codec, CLK_REG_2,
+		snd_soc_update_bits(codec, CLK_REG_2, 0x7F,
 			      ((aic31xx_divs[i].p_val << 4) | 0x01));
 
 		/* J value */
-		aic31xx_write(codec, CLK_REG_3, aic31xx_divs[i].pll_j);
+		snd_soc_update_bits(codec, CLK_REG_3, 0x3F,
+					aic31xx_divs[i].pll_j);
 
 		/* MSB & LSB for D value */
-		aic31xx_write(codec, CLK_REG_4, (aic31xx_divs[i].pll_d >> 8));
-		aic31xx_write(codec, CLK_REG_5,
+		snd_soc_update_bits(codec, CLK_REG_4, 0x3F,
+					(aic31xx_divs[i].pll_d >> 8));
+		snd_soc_update_bits(codec, CLK_REG_5, 0xFF,
 			      (aic31xx_divs[i].pll_d & AIC31xx_8BITS_MASK));
 
 		/* NDAC divider value */
-		aic31xx_write(codec, NDAC_CLK_REG, aic31xx_divs[i].ndac);
+		snd_soc_update_bits(codec, NDAC_CLK_REG, 0x7F,
+						aic31xx_divs[i].ndac);
 
 		/* MDAC divider value */
-		aic31xx_write(codec, MDAC_CLK_REG, aic31xx_divs[i].mdac);
+		snd_soc_update_bits(codec, MDAC_CLK_REG, 0x7F,
+						aic31xx_divs[i].mdac);
+
+		/* NADC and MADC divider values */
+		snd_soc_update_bits(codec, NADC_CLK_REG, 0x7F,
+						aic31xx_divs[i].nadc);
+		snd_soc_update_bits(codec, MADC_CLK_REG, 0x7F,
+						aic31xx_divs[i].madc);
 
 		/* DOSR MSB & LSB values */
-		aic31xx_write(codec, DAC_OSR_MSB, aic31xx_divs[i].dosr >> 8);
-		aic31xx_write(codec, DAC_OSR_LSB,
+		snd_soc_update_bits(codec, DAC_OSR_MSB, 0x03,
+						aic31xx_divs[i].dosr >> 8);
+		snd_soc_update_bits(codec, DAC_OSR_LSB, 0xFF,
 			      aic31xx_divs[i].dosr & AIC31xx_8BITS_MASK);
 	}
 	/* BCLK N divider */
-	aic31xx_write(codec, BCLK_N_VAL, aic31xx_divs[i].blck_N);
+	snd_soc_update_bits(codec, BCLK_N_VAL, 0x7F,
+						aic31xx_divs[i].blck_N);
 
-	data = aic31xx_read(codec, INTERFACE_SET_REG_1);
-
+	data = codec->read(codec, INTERFACE_SET_REG_1);
 	data = data & ~(3 << 4);
-
-	printk(KERN_ALERT "##- Data length: %d\n", params_format(params));
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -1322,84 +1187,17 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
- 	/* Write to Page 0 Reg 27 for the Codec Interface control 1 Register */
-	aic31xx_write(codec, INTERFACE_SET_REG_1, data);
-
-  	/* Switch on the Codec into ON State after all the above configuration */
-	dac3100_power_up(codec);
-
-        /* Add the Processing blocks section as per the discussion with Design team */
-        aic31xx_write (codec, DAC_PRB_SEL_REG, 0x03);
+	/* Write to Page 0 Reg 27 for the Codec Interface control 1
+	 * Register */
+	codec->write(codec, INTERFACE_SET_REG_1, data);
 
 	DBG("##- SET dac3100_hw_params\n");
 
+	/*setting pmdown_time of pcm rtd structure to 0*/
+	rtd->pmdown_time = 0;
+
 	mutex_unlock(&aic31xx->mutex);
-
 	return 0;
-}
-
-/*
- * aic31xx_config_hp_volume
- *
- * Configure the I2C Transaction global variables. One of them is for ramping
- * down the HP.
- * Analog Volume and the other one is for ramping up the HP Analog Volume
- */
-void aic31xx_config_hp_volume(struct snd_soc_codec *codec, int mute)
-{
-	struct i2c_client *client = codec->control_data;
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
-	unsigned int count;
-	unsigned int reg_update_count = 0;
-
-	/* User has requested to mute or bring down the Headphone Analog Volume
-	 * Move from 0 db to -35.2 db
-	 */
-	if (mute > 0) {
-		aic31xx_write(codec, L_ANLOG_VOL_2_HPL, 255);
-        	aic31xx_write(codec, R_ANLOG_VOL_2_HPR, 255);
-	} else {
-	/* User has requested to unmute or bring up the Headphone Analog
-	 * Volume Move from -35.2 db to 0 db
-	 */
-		aic31xx_write(codec, L_ANLOG_VOL_2_HPL, hp_l_analog_gain);
-        	aic31xx_write(codec, R_ANLOG_VOL_2_HPR, hp_r_analog_gain);
-	}
-
-	/* Change to Page 1 */
-	aic31xx_change_page(codec, 1);
-
-	if (aic31xx->i2c_regs_status == 0) {
-		for (count = 0; count < reg_update_count; count++) {
-			i2c_right_transaction[count].addr = client->addr;
-			i2c_right_transaction[count].flags =
-				client->flags & I2C_M_TEN;
-			i2c_right_transaction[count].len = 2;
-			i2c_right_transaction[count].buf = (char *)
-				&aic31xx->hp_analog_right_vol[count];
-		}
-
-		for (count = 0; count < reg_update_count; count++) {
-			i2c_left_transaction[count].addr = client->addr;
-			i2c_left_transaction[count].flags =
-				client->flags & I2C_M_TEN;
-			i2c_left_transaction[count].len = 2;
-			i2c_left_transaction[count].buf = (char *)
-				&aic31xx->hp_analog_left_vol[count];
-		}
-		aic31xx->i2c_regs_status = 1;
-	}
-	/* Perform bulk I2C transactions */
-	if (i2c_transfer(client->adapter, i2c_right_transaction,
-			reg_update_count) != reg_update_count) {
-		printk(KERN_ERR "Error while Write brust i2c data error on "
-				"R_ANLOG_VOL_2_HPR!\n");
-	}
-	if (i2c_transfer(client->adapter, i2c_left_transaction,
-			reg_update_count) != reg_update_count) {
-		printk(KERN_ERR "Error while Write brust i2c data error on "
-				"L_ANLOG_VOL_2_HPL!\n");
-	}
 }
 
 /*
@@ -1407,15 +1205,15 @@ void aic31xx_config_hp_volume(struct snd_soc_codec *codec, int mute)
  */
 static int aic31xx_dac_mute(struct snd_soc_codec *codec, int mute)
 {
-	u8       dac_reg;
+	u8 dac_reg;
 	volatile u8 value;
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	volatile u16 time_out_counter;
 
-	DBG("##+ new dac3100_mute %d (current state is %d, headset_connected=%d) \n",
-               mute, aic31xx->mute, aic31xx->headset_connected);
+	DBG("%s: mute = %d\t priv->mute = %d\t headset_detect = %d\n",
+		__func__, mute, aic31xx->mute, aic31xx->headset_connected);
 
-	dac_reg = aic31xx_read(codec, DAC_MUTE_CTRL_REG);
+	dac_reg = codec->read(codec, DAC_MUTE_CTRL_REG);
 
 	/* Also update the global Playback Status Flag. This is required for
            biquad update. */
@@ -1424,58 +1222,37 @@ static int aic31xx_dac_mute(struct snd_soc_codec *codec, int mute)
                 if (aic31xx->headset_connected) {
 
                         /* Switch ON the Class_D Speaker Amplifier */
-			value = aic31xx_read (codec, CLASSD_SPEAKER_AMP);
-			aic31xx_write (codec, CLASSD_SPEAKER_AMP, (value | 0x80));
+			value = codec->read (codec, CLASSD_SPEAKER_AMP);
+			codec->write(codec, CLASSD_SPEAKER_AMP, (value | 0x80));
 
                         /* Page 47 of the datasheets requires unmuting HP and
                            Speaker drivers first */
                         /* MUTE the Headphone Left and Right */
-                        value = aic31xx_read (codec, HPL_DRIVER);
-                        aic31xx_write (codec, HPL_DRIVER, (value & ~0x04));
+                        value = codec->read (codec, HPL_DRIVER);
+                        codec->write(codec, HPL_DRIVER, (value & ~0x04));
 
-                        value = aic31xx_read (codec, HPR_DRIVER);
-                        aic31xx_write (codec, HPR_DRIVER, (value & ~0x04));
+                        value = codec->read (codec, HPR_DRIVER);
+                        codec->write(codec, HPR_DRIVER, (value & ~0x04));
                         DBG("##MUTED the HPL and HPR DRIVER REGS\n");
-#if 1
-                    aic31xx_config_hp_volume (codec, mute);
-//                        mdelay(10);
-#else
-                    /* Bring the HP Analog Volume Control Registers back to default value */
-                    value = aic31xx_read (codec, RIGHT_ANALOG_HPR);
-                    while (value < hp_l_analog_gain) {
-                            value++;
-                            aic31xx_write (codec, R_ANLOG_VOL_2_HPR, value);
-                            mdelay(2);
-                            aic31xx_write (codec, L_ANLOG_VOL_2_HPL, value);
-                            mdelay(2);
-                    }
-
-                    DBG("Moved RIGHT_ANALOG_HPR to %d\r\n", (value & 0x7F));
-#endif
-
                 } else {
                         /* MUTE THE Class-D Speaker Driver */
-                        value = aic31xx_read (codec, SPL_DRIVER);
-                        aic31xx_write (codec, SPL_DRIVER, (value & ~0x04));
+                        value = codec->read (codec, SPL_DRIVER);
+                        codec->write(codec, SPL_DRIVER, (value & ~0x04));
 
                         DBG("##SPL MUTE REGS\n");
                 }
 
 		DBG("##muting DAC .................\n");
 
-	        aic31xx_write (codec, DAC_MUTE_CTRL_REG, dac_reg | MUTE_ON);
+	        codec->write(codec, DAC_MUTE_CTRL_REG, dac_reg | MUTE_ON);
 
                 DBG("##DAC MUTE Completed..\r\n");
-
-                /* Change the DACL and DACR volumes values to lowest value */
-                aic31xx_write (codec, LDAC_VOL, 0x81);
-                aic31xx_write (codec, RDAC_VOL, 0x81);
 
                 do {
                         mdelay(5);
                         /* Poll the DAC_FLAG register Page 0 38 for the DAC MUTE
                            Operation Completion Status */
-                        value = aic31xx_read (codec, DAC_FLAG_2);
+			value = codec->read(codec, DAC_FLAG_2);
                         time_out_counter++;
                 } while ((time_out_counter < 20) && ((value & 0x11) == 0));
                 DBG("##DAC Vol Poll Completed counter  %d regval %x\r\n",
@@ -1487,91 +1264,72 @@ static int aic31xx_dac_mute(struct snd_soc_codec *codec, int mute)
                 /* We will enable the DAC UNMUTE first and finally the
                    Headphone UNMUTE to avoid pops */
 
-
                 if (aic31xx->headset_connected) {
                         /*Read the contents of the Page 0 Reg 63 DAC Data-Path
                          Setup Register. Just retain the upper two bits and
                          lower two bits
                         */
-                        value = (aic31xx_read(codec, DAC_CHN_REG) & 0xC3);
-                        aic31xx_write(codec, DAC_CHN_REG, (value | LDAC_2_LCHN | RDAC_2_RCHN));
+                        value = (codec->read(codec, DAC_CHN_REG) & 0xC3);
+                        codec->write(codec, DAC_CHN_REG, (value | LDAC_2_LCHN | RDAC_2_RCHN));
                 	/* Restore the values of the DACL and DACR */
-                	aic31xx_write (codec, LDAC_VOL, left_dac_gain);
-                	aic31xx_write (codec, RDAC_VOL, right_dac_gain);
+			codec->write(codec, LDAC_VOL, 0xFC);
+			codec->write(codec, RDAC_VOL, 0xFC);
 
 			time_out_counter = 0;
                 	do {
                 	        mdelay (5);
-                	        value = aic31xx_read (codec, DAC_FLAG_2);
+				value = codec->read(codec, DAC_FLAG_2);
                 	        time_out_counter ++;
                 	} while ((time_out_counter < 100) && ((value & 0x11) == 0));
 
 			DBG("##Changed DAC Volume back counter %d.\n", time_out_counter);
 
-	                aic31xx_write (codec, DAC_MUTE_CTRL_REG, (dac_reg & ~MUTE_ON));
+	                codec->write(codec, DAC_MUTE_CTRL_REG, (dac_reg & ~MUTE_ON));
 
 	                DBG ("##DAC UNMUTED ...\n");
-#if 1
-                    aic31xx_config_hp_volume (codec, mute);
-    //                    mdelay(10);
-#else
-                    /* Bring the HP Analog Volume Control Registers back to default value */
-                    value = aic31xx_read (codec, RIGHT_ANALOG_HPR);
-                    while (value > hp_l_analog_gain) {
-                            value--;
-                            aic31xx_write (codec, RIGHT_ANALOG_HPR, value);
-                            mdelay(2);
-                            aic31xx_write (codec, LEFT_ANALOG_HPL, value);
-                            mdelay(2);
-                    }
 
-                    DBG("Moved RIGHT_ANALOG_HPR to %d\r\n", (value & 0x7F));
-
-#endif
                     /* Page 47 of the datasheets requires unmuting HP and
                        Speaker drivers first */
                     /* UNMUTE the Headphone Left and Right */
-                    value = aic31xx_read (codec, HPL_DRIVER);
-                    aic31xx_write (codec, HPL_DRIVER, (value | 0x04));
+                    value = codec->read (codec, HPL_DRIVER);
+                    codec->write(codec, HPL_DRIVER, (value | 0x04));
 
-                    value = aic31xx_read (codec, HPR_DRIVER);
-                    aic31xx_write (codec, HPR_DRIVER, (value | 0x04));
+                    value = codec->read (codec, HPR_DRIVER);
+                    codec->write(codec, HPR_DRIVER, (value | 0x04));
                     DBG("##UNMUTED the HPL and HPR DRIVER REGS\n");
 
-
                     /* Switch OFF the Class_D Speaker Amplifier */
-                    value = aic31xx_read (codec, CLASSD_SPEAKER_AMP);
-                    aic31xx_write (codec, CLASSD_SPEAKER_AMP, (value & ~0x80));
-
+                    value = codec->read (codec, CLASSD_SPEAKER_AMP);
+                    codec->write (codec, CLASSD_SPEAKER_AMP, (value & ~0x80));
 
                 } else {
                         /*Read the contents of the Page 0 Reg 63 DAC Data-Path
                          Setup Register. Just retain the upper two bits and
                          lower two bits
                         */
-                        value = (aic31xx_read(codec, DAC_CHN_REG) & 0xC3);
-                        aic31xx_write(codec, DAC_CHN_REG,
+                        value = (codec->read(codec, DAC_CHN_REG) & 0xC3);
+                        codec->write(codec, DAC_CHN_REG,
                                       (value | LDAC_LCHN_RCHN_2));
 
                 	/* Restore the values of the DACL and DACR */
-                	aic31xx_write (codec, LDAC_VOL, left_dac_gain);
-                	aic31xx_write (codec, RDAC_VOL, right_dac_gain);
+			codec->write(codec, LDAC_VOL, 0xFC);
+			codec->write(codec, RDAC_VOL, 0xFC);
 
 			time_out_counter = 0;
                 	do {
                 	        mdelay (5);
-                	        value = aic31xx_read (codec, DAC_FLAG_2);
+				value = codec->read(codec, DAC_FLAG_2);
                 	        time_out_counter ++;
                 	} while ((time_out_counter < 100) && ((value & 0x11) == 0));
 
 			DBG("##Changed DAC Volume back counter %d.\n", time_out_counter);
 
-	                aic31xx_write (codec, DAC_MUTE_CTRL_REG, (dac_reg & ~MUTE_ON));
+	                codec->write (codec, DAC_MUTE_CTRL_REG, (dac_reg & ~MUTE_ON));
 
 	                DBG ("##DAC UNMUTED ...\n");
                         /* UNMUTE THE Class-D Speaker Driver */
-                        value = aic31xx_read (codec, SPL_DRIVER);
-                        aic31xx_write (codec, SPL_DRIVER, (value | 0x04));
+                        value = codec->read(codec, SPL_DRIVER);
+                        codec->write(codec, SPL_DRIVER, (value | 0x04));
 
                         DBG("##SPL UNMUTE REGS\n");
                 }
@@ -1592,15 +1350,26 @@ static int aic31xx_mute(struct snd_soc_dai *dai, int mute)
 {
 	int result = 0;
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(dai->codec);
-
-        DBG ("##dac3100_mute handler mute=%d.\r\n", mute);
+	struct snd_soc_codec *codec = dai->codec;
+	DBG(KERN_INFO "%s: mute = %d\t priv_mute = %d\n", __func__, mute, aic31xx->mute);
 
 	mutex_lock(&aic31xx->mutex);
 
-	result = aic31xx_dac_mute(dai->codec, mute);
+	/* Check for playback and record status and accordingly
+	 * mute or unmute the ADC or the DAC
+	 */
+	if ((mute == 1) && (codec->active != 0)) {
+		if (aic31xx->playback_stream == 1) {
+			printk(KERN_INFO "Session still active\n");
+			mutex_unlock(&aic31xx->mutex);
+		return 0;
+		}
+	}
+
+	if (aic31xx->playback_stream)
+		result = aic31xx_dac_mute(dai->codec, mute);
 
 	mutex_unlock(&aic31xx->mutex);
-
 	return result;
 }
 
@@ -1702,7 +1471,6 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 	/* full On */
 	case SND_SOC_BIAS_ON:
 		DBG("###aic31xx_set_bias_level BIAS_ON\n");
-		dac3100_power_up(codec);
 		break;
 
 	/* partial On */
@@ -1713,14 +1481,11 @@ static int aic31xx_set_bias_level(struct snd_soc_codec *codec,
 	/* Off, with power */
 	case SND_SOC_BIAS_STANDBY:
 		DBG("###aic31xx_set_bias_level STANDBY\n");
-		dac3100_power_down(codec);
 		break;
 
 	/* Off, without power */
 	case SND_SOC_BIAS_OFF:
 		DBG("###aic31xx_set_bias_level OFF\n");
-		aic31xx_dac_mute(codec, 1);
-		dac3100_power_down(codec);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -1738,7 +1503,7 @@ unlock:
 */
 static int aic31xx_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	DBG(KERN_INFO "%s: entered\n");
+	DBG(KERN_INFO "%s: entered\n", __func__);
 
 	if (aic31xx->playback_status == 0) {
 		aic31xx_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -1747,7 +1512,7 @@ static int aic31xx_suspend(struct snd_soc_codec *codec, pm_message_t state)
 		 * Setting this bit will further reduces the amount of power
 		 * consumption
 		 */
-		snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, BIT7);
+		//snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, BIT7);
 
 		/*Disable Audio clock from FREF_CLK1_OUT*/
 		//omap_writew(omap_readw(0x4a30a314) & 0xFEFF, 0x4a30a314);
@@ -1771,14 +1536,14 @@ static int aic31xx_resume(struct snd_soc_codec *codec)
 	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 1);
 
 	/* sleep for 10 ms to allow the voltage to stabilize */
-	msleep(20);
+	msleep(50);
 #endif
 
 	/*Enable Audio clock from FREF_CLK1_OUT*/
 	//omap_writew(omap_readw(0x4a30a314) | ~0xFEFF, 0x4a30a314);
 
 	/* Perform the Device Soft Power UP */
-	snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
+	//snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
 
 	DBG("aic31xx_resume: Suspend_bias_level %d\r\n",
 		codec->dapm.suspend_bias_level);
@@ -1789,16 +1554,14 @@ static int aic31xx_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef AIC31xx_GPIO_INTR_SUPPORT
-
 static irqreturn_t aic31xx_codec_irq_handler(int irq, void *data)
 {
+	struct snd_soc_codec *codec = data;
 	DBG(KERN_ALERT "interrupt of codec found\n");
+	codec_work_var_glob = codec;
 	schedule_work(&codec_int_work);
 	return IRQ_HANDLED;
 }
-
-#endif /* #ifdef AIC31xx_GPIO_INTR_SUPPORT */
 
 /*
  * tlv320aic31xx_init - initialise the aic31xx driver register the mixer and
@@ -1809,6 +1572,8 @@ static int tlv320aic31xx_init(struct snd_soc_codec *codec)
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 	int i = 0;
+	int hph_detect_gpio = AUDIO_CODEC_HPH_DETECT_GPIO;
+	int hph_detect_irq = 0;
 
 	DBG(KERN_ALERT "##+tlv320aic31xx_init\n");
 
@@ -1817,12 +1582,18 @@ static int tlv320aic31xx_init(struct snd_soc_codec *codec)
 	aic31xx->headset_connected =  0;
 	aic31xx->power_status      =  0;
 	aic31xx->playback_status   =  0;
-	aic31xx->capture_stream    =  0;
 	aic31xx->i2c_regs_status   =  0;
 
 	mutex_init(&aic31xx->mutex);
 
-	aic31xx->page_no = 0;
+	ret = gpio_request(hph_detect_gpio, "dac3100-headset");
+
+	if (ret < 0) {
+		goto err1;
+	}
+	gpio_direction_input(hph_detect_gpio);
+	hph_detect_irq = OMAP_GPIO_IRQ(hph_detect_gpio);
+
 	aic31xx->page_no = 0;
 
 	aic31xx_change_page(codec, 0x00);
@@ -1842,19 +1613,21 @@ static int tlv320aic31xx_init(struct snd_soc_codec *codec)
 	aic31xx_dac_mute(codec, 1);
 	aic31xx->headset_connected = 0;
 
-#ifdef AIC31xx_GPIO_INTR_SUPPORT
-	ret = request_irq(codec_interrupt, aic31xx_codec_irq_handler,
+	ret = request_irq(hph_detect_irq, aic31xx_codec_irq_handler,
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			  IRQF_DISABLED | IRQF_SHARED , "aic31xx_codec_int",
 			  codec);
 	if (ret != 0) {
 		printk(KERN_ERR "%s: irq registration failed\n", __func__);
-		free_irq(codec_interrupt, codec);
+		free_irq(hph_detect_irq, codec);
 	}
-#endif
+
 	DBG(KERN_ALERT "##-tlv320aic31xx_init\n");
 	return ret;
 
+err1:
+	free_irq(hph_detect_irq, codec);
+	return ret;
 }
 
 /*
@@ -1866,34 +1639,6 @@ static struct snd_soc_dai_ops aic31xx_dai_ops = {
 	.set_sysclk     = aic31xx_set_dai_sysclk,
 	.set_fmt        = aic31xx_set_dai_fmt,
 };
-
-/*
- * aic31xx_get_record_status
- *
- * Helper function which checks if the Record Path is
- * active within the Audio Codec Driver. This function
- * returns the following:
- * 0	- No Recording Session in Progress or Recording stopped
- * 1	- Recording session is active and in progress
- */
-int aic31xx_get_record_status(void)
-{
-	/* Check the global Codec Priv Struct */
-	if (unlikely(aic31xx == 0))
-		return 0;
-
-	/* Check the Priv Struct power_status and
-	 * capture_status variable along with mute
-	 * All these three will let us know if recording is
-	 * active and in progress.
-	 */
-	if (aic31xx->power_status && aic31xx->capture_stream &&
-			aic31xx->mute == 0)
-		return 1;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(aic31xx_get_record_status);
 
 #ifdef AIC31xx_GPIO_INTR_SUPPORT
 /*
@@ -1917,6 +1662,73 @@ static void codec_int_gpio_bh(struct work_struct *work)
 }
 
 #endif
+
+/*
+ *----------------------------------------------------------------------------
+ * Function : dac3100_headset_speaker_path
+ * Purpose  : This function is to check for the presence of Headset and
+ *            configure the Headphone of the Class D Speaker driver
+ *            Registers appropriately.
+ *
+ *----------------------------------------------------------------------------
+ */
+static int dac3100_headset_speaker_path(struct snd_soc_codec *codec)
+{
+	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+	int headset_detect_gpio = AUDIO_CODEC_HPH_DETECT_GPIO;
+	int headset_present = 0;
+
+	mutex_lock(&aic31xx->mutex);
+
+	headset_present = !(gpio_get_value(headset_detect_gpio));
+
+	aic31xx->headset_connected = headset_present;
+
+        DBG("%s: %d\n", __func__, headset_present);
+
+        if (aic31xx->playback_status == 1) {
+
+		/* If codec was not powered up, power up the same. */
+		if(headset_present) {
+			DBG("headset present and headset path Activated\n");
+                        aic31xx_write(codec, HEADPHONE_DRIVER, 0xC4); // 0xCC ON
+                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, 0x06); // OFF
+		} else {
+			DBG( "headset removed and headset path "
+                               "Deactivated\n");
+
+                        aic31xx_write(codec, HEADPHONE_DRIVER ,0x04); // OFF
+                        aic31xx_write(codec, CLASSD_SPEAKER_AMP ,0xC6 ); //ON
+                }
+
+                /* We will force the dac3100->mute to 1 to ensure that the
+                 * following function executes completely.
+                 */
+                aic31xx->mute = 1;
+                /* Now unmute the appropriate Codec sections with Volume Ramping */
+                aic31xx_dac_mute(codec, 0);
+
+#ifdef CONFIG_ADAPTIVE_FILTER
+		/* Update the Biquad Array */
+		aic31xx_update_biquad_array(codec, headset_present,
+					    aic31xx->playback_status);
+#endif
+	}
+	mutex_unlock(&aic31xx->mutex);
+	return 0;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ * Function : i2c_dac3100_headset_access_work
+ * Purpose  : Worker Thread Function.
+ *
+ *----------------------------------------------------------------------------
+ */
+static void i2c_dac3100_headset_access_work (struct work_struct *work)
+{
+	dac3100_headset_speaker_path(codec_work_var_glob);
+}
 
 typedef unsigned int (*hw_read_t)(struct snd_soc_codec *, unsigned int);
 
@@ -1948,7 +1760,7 @@ static int aic31xx_probe(struct snd_soc_codec *codec)
 	jack->sdev.name = "h2w";
 	ret = switch_dev_register(&jack->sdev);
 	if (ret) {
-		printk(KERN_INFO"error registering switch device %d\n", ret);
+		printk(KERN_INFO "error registering switch device %d\n", ret);
 		goto reg_err;
 	}
 
@@ -1970,6 +1782,8 @@ static int aic31xx_probe(struct snd_soc_codec *codec)
 
 	aic31xx_parse_biquad_array(codec);
 #endif
+
+	dac3100_headset_speaker_path(codec);
 
 	return ret;
 
@@ -2000,7 +1814,7 @@ struct snd_soc_dai_driver aic31xx_dai = {
 	.name = "tlv320aic31xx-dai",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = AIC31xx_RATES,
 		.formats = AIC31xx_FORMATS,
@@ -2049,10 +1863,6 @@ static int tlv320aic31xx_i2c_probe(struct i2c_client *i2c,
 	aic31xx->control_data = i2c;
 	i2c_set_clientdata(i2c, aic31xx);
 
-#ifdef AIC31xx_GPIO_INTR_SUPPORT
-	INIT_WORK(&codec_init_works, aic31xx_codec_access_work);
-#endif
-
 	ret = gpio_request(codec_interrupt_gpio, "Codec Interrupt");
 	if (ret < 0) {
 		printk(KERN_INFO "%s: error in gpio request. codec interrupt"
@@ -2080,6 +1890,8 @@ static int tlv320aic31xx_i2c_probe(struct i2c_client *i2c,
 	gpio_direction_output(AUDIO_CODEC_RESET_GPIO, 1);
 	gpio_set_value(AUDIO_CODEC_RESET_GPIO, 1);
 	mdelay(10);
+
+	INIT_WORK(&codec_int_work, i2c_dac3100_headset_access_work);
 
 	ret = snd_soc_register_codec(&i2c->dev, &aic31xx_codec,
 				     &aic31xx_dai, 1);

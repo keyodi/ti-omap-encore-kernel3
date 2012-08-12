@@ -117,7 +117,6 @@
 /* number of codec specific register for configuration */
 #define NO_FEATURE_REGS     		2
 
-#define ACCLAIM_HS_DETECT_GPIO 	102
 /* aic31xx register space */
 
 /* ****************** Page 0 Registers **************************************/
