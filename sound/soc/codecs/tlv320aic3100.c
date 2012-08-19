@@ -160,7 +160,7 @@ struct i2c_msg i2c_left_transaction[120];
  * mclk, rate, p_val, pll_j, pll_d, dosr, ndac, mdac, aosr, nadc, madc, blck_N
  */
 static const struct aic31xx_rate_divs aic31xx_divs[] = {
-/* 8k rate */
+            /* 8k rate */
             {13000000, 8000, 1, 6, 3803, 128, 3, 27, 128, 3, 27, 4},
             /* 11.025k rate */
             {13000000, 11025, 1, 6, 1876, 128, 3, 19, 128, 3, 19, 4},
@@ -1901,7 +1901,8 @@ static int tlv320aic31xx_i2c_probe(struct i2c_client *i2c,
 		printk(KERN_ERR "tlv320aic31xx_i2c_probe: failed to attach"
 				" codec at addr\n");
 	else
-		DBG("aic31xx_register sucess...\r\n");
+		DBG("aic31xx_register success...\r\n");
+
 	DBG("tlv320aic31xx_i2c_probe exited...\r\n");
 	return ret;
 }

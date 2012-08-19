@@ -35,7 +35,7 @@
 #define AUDIO_NAME "aic31xx"
 #define AIC3100_VERSION "1.0"
 
-#define AIC31xx_DEBUG
+#undef AIC31xx_DEBUG
 
 #ifdef AIC31xx_DEBUG
 #define DBG(x...) printk(KERN_INFO x)
