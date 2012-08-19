@@ -538,7 +538,7 @@ struct max17042_platform_data max17042_platform_data_here = {
 
 /* The order is reverted in this table so that internal eMMC is presented
  * as first mmc card for compatibility with existing android installations */
-static struct omap2_hsmmc_info mmc[] __initdata = {
+static struct omap2_hsmmc_info mmc[] = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
@@ -546,18 +546,14 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
-#ifdef CONFIG_PM_RUNTIME
 		.power_saving	= true,
-#endif
 	},
 	{
 		.name		= "external",
 		.mmc		= 1,
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_wp	= -EINVAL,
-#ifdef CONFIG_PM_RUNTIME
 		.power_saving	= true,
-#endif
 	},
 	{
 		.name		= "wl1271",
