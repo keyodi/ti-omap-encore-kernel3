@@ -267,7 +267,7 @@ config MACH_OMAP_ZOOM3
 	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_ENCORE
-	bool "OMAP3630 Zoom3 board"
+	bool "Encore (BN Nook Color)"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBP
