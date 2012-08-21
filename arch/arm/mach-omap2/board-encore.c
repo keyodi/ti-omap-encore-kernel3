@@ -40,6 +40,12 @@
 #define ZOOM3_McBSP3_BT_GPIO            164
 #define ENCORE_BT_RESET_GPIO            60
 #define ENCORE_WIFI_IRQ_GPIO		15
+#define ENCORE_WIFI_ENPOW_GPIO		16
+
+#ifdef CONFIG_WLAN_POWER_EVT1
+#define ENABLE_VAUX2_DEDICATED		0x05
+#define ENABLE_VAUX2_DEV_GRP		0x20
+#endif
 
 #define WILINK_UART_DEV_NAME            "/dev/ttyO1"
 
@@ -147,11 +153,39 @@ static struct wl12xx_platform_data encore_wlan_data __initdata = {
 	.board_ref_clock = WL12XX_REFCLOCK_38,
 };
 
-static void encore_wifi_init(void)
-{
-	if (wl12xx_set_platform_data(&encore_wlan_data))
-		pr_err("Error setting wl12xx data\n");
+static int __init encore_wifi_v18io_power_enable(void) {
+	int retval = 0;
+
+#ifdef CONFIG_WLAN_POWER_EVT1
+	printk("Enabling VAUX for wifi\n");
+	retval = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
+			ENABLE_VAUX2_DEDICATED,
+			TWL4030_VAUX2_DEDICATED);
+	retval |= twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
+			ENABLE_VAUX2_DEV_GRP,
+			TWL4030_VAUX2_DEV_GRP);
+	if (retval != 0)
+		printk("Enabling VAUX for wifi failed with error %d\n", retval);
+#endif
+
+	return retval;
 }
+
+static int __init encore_wifi_init(void)
+{
+	int ret;
+
+	gpio_request(ENCORE_WIFI_ENPOW_GPIO, "wifi_en_pow");
+	encore_wifi_v18io_power_enable();
+	gpio_direction_output(ENCORE_WIFI_ENPOW_GPIO, 1);
+
+	ret = wl12xx_set_platform_data(&encore_wlan_data);
+	if (ret)
+		pr_err("Error setting wl12xx data\n");
+
+	return ret;
+}
+device_initcall(encore_wifi_init);
 
 static void __init omap_encore_init(void)
 {
@@ -160,7 +194,7 @@ static void __init omap_encore_init(void)
 	//omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
 	//usbhs_init(&usbhs_bdata);
 
-	encore_wifi_init();
+	//encore_wifi_init();
 	encore_peripherals_init();
 	encore_display_init();
 	omap_register_ion();
