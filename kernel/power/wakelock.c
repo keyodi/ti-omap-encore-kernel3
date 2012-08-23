@@ -40,6 +40,14 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
 
+
+//&*&*&*HC1_20110427, Add to control wakeup source
+#include <plat/wakeup-source.h>
+extern void SendPowerbuttonEvent( void );
+int g_wakeup_reason = 0;
+//&*&*&*HC2_20110427, Add to control wakeup source
+
+
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
 static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
@@ -272,6 +280,7 @@ static void suspend(struct work_struct *work)
 {
 	int ret;
 	int entry_event_num;
+	int send_event = 0;
 	struct timespec ts_entry, ts_exit;
 
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
@@ -295,6 +304,10 @@ static void suspend(struct work_struct *work)
 			"(%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)\n", ret,
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts_exit.tv_nsec);
+		//&*&*&*BC1_110513:add the wifi suspend wakelock to avoid wifi or system crash
+				if(ret != 0)
+				wake_lock_timeout(&unknown_wakeup, 2*HZ);	
+		//&*&*&*BC2_110513:add the wifi suspend wakelock to avoid wifi or system crash
 	}
 
 	if (ts_exit.tv_sec - ts_entry.tv_sec <= 1) {
