@@ -515,6 +515,12 @@ static int max8903_charger_probe(struct platform_device *pdev)
 		goto exit1;
 	}
 	mc->max8903_gpio_chg_flt = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_STATUS);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_STATUS);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_status = r->start;
 	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_IUSB);
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_IUSB);
@@ -595,6 +601,14 @@ static int max8903_charger_probe(struct platform_device *pdev)
 	}
 	gpio_direction_input(mc->max8903_gpio_chg_flt);
 
+	/*~STATUS control */
+	if (gpio_request(mc->max8903_gpio_chg_status, MAX8903_TOKEN_GPIO_CHG_STATUS) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_en\n");
+		goto exitb;
+	}
+	gpio_direction_output(mc->max8903_gpio_chg_status, DISABLED);
+
+
 	/*~FLT status*/
 	mc->flt_irq= gpio_to_irq(mc->max8903_gpio_chg_flt) ;
 	ret  = request_irq( mc->flt_irq,
@@ -645,6 +659,8 @@ exitn:
 
 exitd:
 	free_irq(mc->flt_irq,mc);
+exitb:
+	gpio_free(mc->max8903_gpio_chg_status);
 exita:
 	gpio_free(mc->max8903_gpio_chg_flt);
 exit9:

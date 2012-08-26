@@ -398,6 +398,11 @@ static struct resource max8903_gpio_resources_evt1a[] = {
 		.end	= MAX8903_GPIO_CHG_FLT,
 		.flags	= IORESOURCE_IO,
 	}, {
+		.name	= MAX8903_TOKEN_GPIO_CHG_STATUS,
+		.start	= MAX8903_GPIO_CHG_STATUS,
+		.end	= MAX8903_GPIO_CHG_STATUS,
+		.flags	= IORESOURCE_IO,
+	}, {
 		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
 		.start	= MAX8903_GPIO_CHG_IUSB,
 		.end	= MAX8903_GPIO_CHG_IUSB,
@@ -425,82 +430,6 @@ static struct resource max8903_gpio_resources_evt1a[] = {
 	}
 };
 
-static struct resource max8903_gpio_resources_evt1b[] = {
-	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
-		.start	= MAX8903_GPIO_CHG_EN,
-		.end	= MAX8903_GPIO_CHG_EN,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
-		.start	= MAX8903_GPIO_CHG_FLT,
-		.end	= MAX8903_GPIO_CHG_FLT,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
-		.start	= MAX8903_GPIO_CHG_IUSB,
-		.end	= MAX8903_GPIO_CHG_IUSB,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
-		.start	= MAX8903_GPIO_CHG_USUS_EVT1B,
-		.end	= MAX8903_GPIO_CHG_USUS_EVT1B,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
-		.start	= MAX8903_GPIO_CHG_ILM_EVT1B,
-		.end	= MAX8903_GPIO_CHG_ILM_EVT1B,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
-		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
-		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}
-};
-
-static struct resource max8903_gpio_resources_dvt[] = {
-	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
-		.start	= MAX8903_GPIO_CHG_EN,
-		.end	= MAX8903_GPIO_CHG_EN,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
-		.start	= MAX8903_GPIO_CHG_FLT,
-		.end	= MAX8903_GPIO_CHG_FLT,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
-		.start	= MAX8903_GPIO_CHG_IUSB,
-		.end	= MAX8903_GPIO_CHG_IUSB,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
-		.start	= MAX8903_GPIO_CHG_USUS_DVT,
-		.end	= MAX8903_GPIO_CHG_USUS_DVT,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
-		.start	= MAX8903_GPIO_CHG_ILM_DVT,
-		.end	= MAX8903_GPIO_CHG_ILM_DVT,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
-		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
-		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}
-};
-
 static struct platform_device max8903_charger_device = {
 	.name           = "max8903_charger",
 	.id             = -1,
@@ -508,21 +437,9 @@ static struct platform_device max8903_charger_device = {
 
 static inline void max8903_charger_init(void)
 {
-	const int board_type = encore_board_type();
+	max8903_charger_device.resource = max8903_gpio_resources_evt1a;
+	max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1a);
 
-	if (board_type >= DVT) {
-		max8903_charger_device.resource = max8903_gpio_resources_dvt;
-		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_dvt);
-	} else if (board_type >= EVT1B) {
-		max8903_charger_device.resource = max8903_gpio_resources_evt1b;
-		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1b);
-	} else if (board_type == EVT1A) {
-		max8903_charger_device.resource = max8903_gpio_resources_evt1a;
-		max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1a);
-	} else {
-		pr_err("%s: Encore board %d not supported\n", __func__, board_type);
-		return;
-	}
 	platform_device_register(&max8903_charger_device);
 }
 
@@ -757,8 +674,11 @@ void __init encore_peripherals_init(void)
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	omap_serial_init();
-
+#ifdef CONFIG_CHARGER_MAX8903
 	max8903_charger_init();
+#endif
 	kxtf9_dev_init();
+#ifdef CONFIG_BATTERY_MAX17042
         max17042_dev_init();
+#endif
 }

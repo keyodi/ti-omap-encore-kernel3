@@ -24,14 +24,15 @@
 #ifndef __MAX8903_H__
 #define __MAX8903_H__
 
-#define MAX8903_UOK_GPIO_FOR_IRQ       82
-#define MAX8903_DOK_GPIO_FOR_IRQ       81
-#define MAX8903_GPIO_CHG_EN            61
-#define MAX8903_GPIO_CHG_FLT           62
-#define MAX8903_GPIO_CHG_IUSB          83
+#define MAX8903_UOK_GPIO_FOR_IRQ       115
+#define MAX8903_DOK_GPIO_FOR_IRQ       114
+#define MAX8903_GPIO_CHG_EN            110
+#define MAX8903_GPIO_CHG_STATUS        111
+#define MAX8903_GPIO_CHG_FLT           101
+#define MAX8903_GPIO_CHG_IUSB          102
 
-#define MAX8903_GPIO_CHG_USUS_EVT1A    96
-#define MAX8903_GPIO_CHG_ILM_EVT1A     97
+#define MAX8903_GPIO_CHG_USUS_EVT1A    104
+#define MAX8903_GPIO_CHG_ILM_EVT1A     61
 
 #define MAX8903_GPIO_CHG_USUS_EVT1B    63
 #define MAX8903_GPIO_CHG_ILM_EVT1B     64
@@ -41,6 +42,7 @@
 
 #define MAX8903_TOKEN_GPIO_CHG_EN     "max8903_gpio_chg_en"
 #define MAX8903_TOKEN_GPIO_CHG_FLT    "max8903_gpio_chg_flt"
+#define MAX8903_TOKEN_GPIO_CHG_STATUS "max8903_gpio_chg_status"
 #define MAX8903_TOKEN_GPIO_CHG_IUSB   "max8903_gpio_chg_iusb"
 #define MAX8903_TOKEN_GPIO_CHG_USUS   "max8903_gpio_chg_usus"
 #define MAX8903_TOKEN_GPIO_CHG_ILM    "max8903_gpio_chg_ilm"
