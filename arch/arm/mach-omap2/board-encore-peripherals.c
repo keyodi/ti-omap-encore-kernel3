@@ -36,7 +36,6 @@
 #include <linux/input/ft5x06.h>
 #include <linux/input/kxtf9.h>
 #include <linux/power/max17042.h>
-#include <linux/power/max8903.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -372,9 +371,19 @@ static struct platform_device encore_lcd_touch_regulator_device = {
 	},
 };
 
+#ifdef CONFIG_CHARGER_MAX8903
+static struct platform_device max8903_charger_device = {
+	.name           = "max8903_charger",
+	.id             = -1,
+};
+#endif
+
 static struct platform_device *encore_board_devices[] __initdata = {
 	&encore_keys_gpio,
 	&encore_lcd_touch_regulator_device,
+#ifdef CONFIG_CHARGER_MAX8903
+	&max8903_charger_device,
+#endif
 };
 
 static struct platform_device omap_vwlan_device = {
@@ -384,66 +393,6 @@ static struct platform_device omap_vwlan_device = {
 		.platform_data	= &encore_vwlan,
 	},
 };
-
-#ifdef CONFIG_CHARGER_MAX8903
-
-static struct resource max8903_gpio_resources_evt1a[] = {
-	{	.name	= MAX8903_TOKEN_GPIO_CHG_EN,
-		.start	= MAX8903_GPIO_CHG_EN,
-		.end	= MAX8903_GPIO_CHG_EN,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_FLT,
-		.start	= MAX8903_GPIO_CHG_FLT,
-		.end	= MAX8903_GPIO_CHG_FLT,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_STATUS,
-		.start	= MAX8903_GPIO_CHG_STATUS,
-		.end	= MAX8903_GPIO_CHG_STATUS,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_IUSB,
-		.start	= MAX8903_GPIO_CHG_IUSB,
-		.end	= MAX8903_GPIO_CHG_IUSB,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_USUS,
-		.start	= MAX8903_GPIO_CHG_USUS_EVT1A,
-		.end	= MAX8903_GPIO_CHG_USUS_EVT1A,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_ILM,
-		.start	= MAX8903_GPIO_CHG_ILM_EVT1A,
-		.end	= MAX8903_GPIO_CHG_ILM_EVT1A,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_UOK,
-		.start	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_UOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}, {
-		.name	= MAX8903_TOKEN_GPIO_CHG_DOK,
-		.start	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.end	= MAX8903_DOK_GPIO_FOR_IRQ,
-		.flags	= IORESOURCE_IO,
-	}
-};
-
-static struct platform_device max8903_charger_device = {
-	.name           = "max8903_charger",
-	.id             = -1,
-};
-
-static inline void max8903_charger_init(void)
-{
-	max8903_charger_device.resource = max8903_gpio_resources_evt1a;
-	max8903_charger_device.num_resources = ARRAY_SIZE(max8903_gpio_resources_evt1a);
-
-	platform_device_register(&max8903_charger_device);
-}
-
-#endif
 
 #ifdef CONFIG_BATTERY_MAX17042
 struct max17042_platform_data max17042_platform_data_here = {
@@ -674,9 +623,7 @@ void __init encore_peripherals_init(void)
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
 	omap_serial_init();
-#ifdef CONFIG_CHARGER_MAX8903
-	max8903_charger_init();
-#endif
+
 	kxtf9_dev_init();
 #ifdef CONFIG_BATTERY_MAX17042
         max17042_dev_init();
