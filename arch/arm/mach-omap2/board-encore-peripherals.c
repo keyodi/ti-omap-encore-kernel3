@@ -263,10 +263,6 @@ static struct platform_device encore_keys_gpio = {
 	},
 };
 
-static struct __initdata twl4030_power_data encore_t2scripts_data = {
-	.use_poweroff	= true,
-};
-
 static struct regulator_consumer_supply encore_vmmc1_supply = {
 	.supply		= "vmmc",
 };
@@ -551,11 +547,100 @@ static struct twl4030_madc_platform_data encore_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct twl4030_codec_audio_data encore_audio_data;
+static struct twl4030_ins sleep_on_seq[] = {
 
-static struct twl4030_codec_data encore_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &encore_audio_data,
+	/* Turn off HFCLKOUT */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x19, RES_STATE_OFF), 2},
+	/* Turn OFF VDD1 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0xf, RES_STATE_OFF), 2},
+	/* Turn OFF VDD2 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x10, RES_STATE_OFF), 2},
+	/* Turn OFF VPLL1 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x7, RES_STATE_OFF), 2},
+        /* Turn OFF REGEN */
+	//{MSG_SINGULAR(DEV_GRP_P1, 0x15, RES_STATE_OFF), 2},
+};
+
+static struct twl4030_script sleep_on_script = {
+	.script	= sleep_on_seq,
+	.size	= ARRAY_SIZE(sleep_on_seq),
+	.flags	= TWL4030_SLEEP_SCRIPT,
+};
+
+static struct twl4030_ins wakeup_p12_seq[] = {
+	/* Turn on HFCLKOUT */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x19, RES_STATE_ACTIVE), 2},
+	/* Turn ON VDD1 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0xf, RES_STATE_ACTIVE), 2},
+	/* Turn ON VDD2 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x10, RES_STATE_ACTIVE), 2},
+	/* Turn ON VPLL1 */
+	{MSG_SINGULAR(DEV_GRP_P1, 0x7, RES_STATE_ACTIVE), 2},
+        /* Turn ON REGEN */
+        {MSG_SINGULAR(DEV_GRP_P1, 0x15, RES_STATE_ACTIVE), 2},
+};
+
+static struct twl4030_script wakeup_p12_script = {
+	.script = wakeup_p12_seq,
+	.size   = ARRAY_SIZE(wakeup_p12_seq),
+	.flags  = TWL4030_WAKEUP12_SCRIPT,
+};
+
+static struct twl4030_ins wakeup_p3_seq[] = {
+	{MSG_SINGULAR(DEV_GRP_P1, 0x19, RES_STATE_ACTIVE), 2},
+};
+
+static struct twl4030_script wakeup_p3_script = {
+	.script = wakeup_p3_seq,
+	.size   = ARRAY_SIZE(wakeup_p3_seq),
+	.flags  = TWL4030_WAKEUP3_SCRIPT,
+};
+
+static struct twl4030_ins wrst_seq[] = {
+/*
+ * Reset twl4030.
+ * Reset VDD1 regulator.
+ * Reset VDD2 regulator.
+ * Reset VPLL1 regulator.
+ * Enable sysclk output.
+ * Reenable twl4030.
+ */
+	{MSG_SINGULAR(DEV_GRP_NULL, 0x1b, RES_STATE_OFF), 2},
+	{MSG_SINGULAR(DEV_GRP_P1, 0xf, RES_STATE_WRST), 15},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x10, RES_STATE_WRST), 15},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x7, RES_STATE_WRST), 0x60},
+	{MSG_SINGULAR(DEV_GRP_P1, 0x19, RES_STATE_ACTIVE), 2},
+	{MSG_SINGULAR(DEV_GRP_NULL, 0x1b, RES_STATE_ACTIVE), 2},
+};
+
+static struct twl4030_script wrst_script = {
+	.script = wrst_seq,
+	.size   = ARRAY_SIZE(wrst_seq),
+	.flags  = TWL4030_WRST_SCRIPT,
+};
+
+static struct twl4030_script *twl4030_scripts[] = {
+	&wakeup_p12_script,
+	&sleep_on_script,
+	&wakeup_p3_script,
+	&wrst_script,
+};
+
+static struct twl4030_resconfig twl4030_rconfig[] = {
+	{ .resource = RES_HFCLKOUT, .devgroup = DEV_GRP_P3, .type = -1,
+		.type2 = -1 },
+	{ .resource = RES_VDD1, .devgroup = DEV_GRP_P1, .type = -1,
+		.type2 = -1 },
+	{ .resource = RES_VDD2, .devgroup = DEV_GRP_P1, .type = -1,
+		.type2 = -1 },
+	{ 0, 0},
+};
+
+static struct twl4030_power_data encore_t2scripts_data = {
+	.scripts	 = twl4030_scripts,
+	.num		 = ARRAY_SIZE(twl4030_scripts),
+	.resource_config = twl4030_rconfig,
+	.use_poweroff	 = true,
 };
 
 static struct twl4030_platform_data encore_twldata = {
@@ -568,7 +653,6 @@ static struct twl4030_platform_data encore_twldata = {
 	.gpio		= &encore_gpio_data,
 	.keypad		= &encore_kp_twl4030_data,
 	.power		= &encore_t2scripts_data,
-	//.codec		= &encore_codec_data,
 	.vmmc1          = &encore_vmmc1,
 	.vmmc2          = &encore_vmmc2,
 	.vsim           = &encore_vsim,
@@ -651,7 +735,6 @@ void __init encore_peripherals_init(void)
 {
 	platform_add_devices(encore_board_devices,
 		ARRAY_SIZE(encore_board_devices));
-	twl4030_get_scripts(&encore_t2scripts_data);
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);
