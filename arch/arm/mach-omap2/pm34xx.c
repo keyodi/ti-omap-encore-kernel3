@@ -443,9 +443,14 @@ void omap_sram_idle(bool suspend)
 	}
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
-		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
-		omap2_gpio_prepare_for_idle(per_going_off, suspend);
+	if (per_next_state == PWRDM_POWER_OFF)
+			if (core_next_state != PWRDM_POWER_OFF)
+				per_next_state = PWRDM_POWER_RET;
+
+	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
+		omap2_gpio_prepare_for_idle(per_next_state, suspend);
+
+		pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
 	}
 
 	/* CORE */
@@ -525,7 +530,7 @@ void omap_sram_idle(bool suspend)
 	pwrdm_post_transition();
 
 	/* PER */
-	if (per_next_state < PWRDM_POWER_ON) {
+	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
 		omap2_gpio_resume_after_idle(per_going_off);
 	}
@@ -989,6 +994,25 @@ static int __init omap3_pm_init(void)
 		omap3630_ctrl_disable_rta();
 
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
+	/*
+	 * Part of fix for errata i468.
+	 * GPIO pad spurious transition (glitch/spike) upon wakeup
+	 * from SYSTEM OFF mode.
+	 * 20120810 sangki.hyun@lge.com glitch patch
+	 */
+	if (omap_rev() <= OMAP3630_REV_ES1_2) {
+		struct clockdomain *wkup_clkdm;
+
+		clkdm_add_wkdep(per_clkdm, core_clkdm);
+
+		/* Also part of fix for errata i582. */
+		wkup_clkdm = clkdm_lookup("wkup_clkdm");
+		if (wkup_clkdm)
+			clkdm_add_wkdep(per_clkdm, wkup_clkdm);
+		else
+			printk(KERN_ERR "%s: failed to look up wkup clock ""domain\n", __func__);
+	}
+
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		omap3_secure_ram_storage =
 			kmalloc(0x803F, GFP_KERNEL);

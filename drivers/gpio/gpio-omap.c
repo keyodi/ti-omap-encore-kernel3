@@ -1714,11 +1714,10 @@ int omap2_gpio_prepare_for_idle(int off_mode, bool suspend)
 			continue;
 
 		if (bank->loses_context)
-			if (bank->id != 3) /*Touchscreen workaround - Prevent bank id 3 from using pm_runtime (keyodi)*/
-				if (pm_runtime_put_sync_suspend(bank->dev) < 0)
-					dev_err(bank->dev, "%s: GPIO bank %d "
-							"pm_runtime_put_sync failed\n",
-							__func__, bank->id);
+			if (pm_runtime_put_sync_suspend(bank->dev) < 0)
+				dev_err(bank->dev, "%s: GPIO bank %d "
+						"pm_runtime_put_sync failed\n",
+						__func__, bank->id);
 	}
 
 	if (ret)
@@ -1737,11 +1736,10 @@ void omap2_gpio_resume_after_idle(int off_mode)
 			continue;
 
 		if (bank->loses_context)
-			if (bank->id != 3) /*Touchscreen workaround - Prevent bank id 3 from using pm_runtime (keyodi)*/
-				if (pm_runtime_get_sync(bank->dev) < 0)
-					dev_err(bank->dev, "%s: GPIO bank %d "
-							"pm_runtime_get_sync failed\n",
-							__func__, bank->id);
+			if (pm_runtime_get_sync(bank->dev) < 0)
+				dev_err(bank->dev, "%s: GPIO bank %d "
+						"pm_runtime_get_sync failed\n",
+						__func__, bank->id);
 
 		omap2_gpio_restore_edge_wakeup(bank);
 
