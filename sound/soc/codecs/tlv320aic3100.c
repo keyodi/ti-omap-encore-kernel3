@@ -1513,7 +1513,7 @@ static int aic31xx_suspend(struct snd_soc_codec *codec, pm_message_t state)
 		 * Setting this bit will further reduces the amount of power
 		 * consumption
 		 */
-		//snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, BIT7);
+		snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, BIT7);
 
 		/*Disable Audio clock from FREF_CLK1_OUT*/
 		//omap_writew(omap_readw(0x4a30a314) & 0xFEFF, 0x4a30a314);
@@ -1531,20 +1531,31 @@ static int aic31xx_suspend(struct snd_soc_codec *codec, pm_message_t state)
  */
 static int aic31xx_resume(struct snd_soc_codec *codec)
 {
+	int i;
+
 	DBG(KERN_INFO "%s: entered\n", __func__);
 
 #ifdef CODEC_POWER_OFF
+	gpio_direction_output(AUDIO_CODEC_PWR_ON_GPIO, 1);
+	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 0);
+	/* RESET/ must be pulled low for at least 10ns */
+	msleep(1);
 	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 1);
-
 	/* sleep for 10 ms to allow the voltage to stabilize */
 	msleep(50);
 #endif
 
-	/*Enable Audio clock from FREF_CLK1_OUT*/
-	//omap_writew(omap_readw(0x4a30a314) | ~0xFEFF, 0x4a30a314);
+	for (i = 0; i < sizeof(aic31xx_reg_init) / sizeof(struct aic31xx_configs); i++) {
+		aic31xx_write(codec, aic31xx_reg_init[i].reg_offset, aic31xx_reg_init[i].reg_val);
+	}
+	aic31xx_write(codec,CLK_REG_1,PLLCLK_2_CODEC_CLKIN);
+	aic31xx_write(codec, L_ANLOG_VOL_2_HPL,0x9E);
+	aic31xx_write(codec, R_ANLOG_VOL_2_HPR,0x9E);
+	aic31xx_write(codec, L_ANLOG_VOL_2_SPL,0x80);
+	aic31xx_write(codec, R_ANLOG_VOL_2_SPR,0x80);
 
 	/* Perform the Device Soft Power UP */
-	//snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
+	snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
 
 	DBG("aic31xx_resume: Suspend_bias_level %d\r\n",
 		codec->dapm.suspend_bias_level);
