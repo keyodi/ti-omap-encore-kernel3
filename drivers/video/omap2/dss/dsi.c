@@ -30,7 +30,7 @@
 #include <linux/semaphore.h>
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
+//#include <linux/regulator/consumer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
@@ -286,7 +286,7 @@ struct dsi_data {
 	struct dsi_clock_info current_cinfo;
 
 	bool vdds_dsi_enabled;
-	struct regulator *vdds_dsi_reg;
+	//struct regulator *vdds_dsi_reg;
 
 	struct {
 		enum dsi_vc_mode mode;
@@ -1657,7 +1657,7 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	enum dsi_pll_power_state pwstate;
 
 	DSSDBG("PLL init\n");
-
+#if 0
 	if (dsi->vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
@@ -1670,20 +1670,20 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 
 		dsi->vdds_dsi_reg = vdds_dsi;
 	}
-
+#endif
 	dsi_enable_pll_clock(dsidev, 1);
 	/*
 	 * Note: SCP CLK is not required on OMAP3, but it is required on OMAP4.
 	 */
 	dsi_enable_scp_clk(dsidev);
-
+#if 0
 	if (!dsi->vdds_dsi_enabled) {
 		r = regulator_enable(dsi->vdds_dsi_reg);
 		if (r)
 			goto err0;
 		dsi->vdds_dsi_enabled = true;
 	}
-
+#endif
 	/* XXX PLL does not come out of reset without this... */
 	dispc_pck_free_enable(1);
 
@@ -1691,7 +1691,10 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		DSSERR("PLL not coming out of reset.\n");
 		r = -ENODEV;
 		dispc_pck_free_enable(0);
+#if 0
 		goto err1;
+#endif
+		goto err0;
 	}
 
 	/* XXX ... but if left on, we get problems when planes do not
@@ -1719,16 +1722,21 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	r = dsi_pll_power(dsidev, pwstate);
 
 	if (r)
+#if 0
 		goto err1;
+#endif
+		goto err0;
 
 	DSSDBG("PLL init done\n");
 
 	return 0;
 err1:
+#if 0
 	if (dsi->vdds_dsi_enabled) {
 		regulator_disable(dsi->vdds_dsi_reg);
 		dsi->vdds_dsi_enabled = false;
 	}
+#endif
 err0:
 	dsi_disable_scp_clk(dsidev);
 	dsi_enable_pll_clock(dsidev, 0);
@@ -1742,9 +1750,11 @@ void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes)
 	dsi->pll_locked = 0;
 	dsi_pll_power(dsidev, DSI_PLL_POWER_OFF);
 	if (disconnect_lanes) {
+#if 0
 		WARN_ON(!dsi->vdds_dsi_enabled);
 		regulator_disable(dsi->vdds_dsi_reg);
 		dsi->vdds_dsi_enabled = false;
+#endif
 	}
 
 	dsi_disable_scp_clk(dsidev);
@@ -4819,7 +4829,7 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	} else {
 		dssdev->caps = 0;
 	}
-
+#if 0
 	if (dsi->vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
@@ -4832,7 +4842,7 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 
 		dsi->vdds_dsi_reg = vdds_dsi;
 	}
-
+#endif
 	if (dsi_get_num_data_lanes_dssdev(dssdev) > dsi->num_data_lanes) {
 		DSSERR("DSI%d can't support more than %d data lanes\n",
 			dsi_module + 1, dsi->num_data_lanes);
@@ -5089,7 +5099,7 @@ static int omap_dsi1hw_remove(struct platform_device *dsidev)
 	pm_runtime_disable(&dsidev->dev);
 
 	dsi_put_clocks(dsidev);
-
+#if 0
 	if (dsi->vdds_dsi_reg != NULL) {
 		if (dsi->vdds_dsi_enabled) {
 			regulator_disable(dsi->vdds_dsi_reg);
@@ -5099,7 +5109,7 @@ static int omap_dsi1hw_remove(struct platform_device *dsidev)
 		regulator_put(dsi->vdds_dsi_reg);
 		dsi->vdds_dsi_reg = NULL;
 	}
-
+#endif
 	free_irq(dsi->irq, dsi->pdev);
 	iounmap(dsi->base);
 

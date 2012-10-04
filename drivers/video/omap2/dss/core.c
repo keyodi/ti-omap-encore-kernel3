@@ -58,7 +58,7 @@ static int omap_dss_register_device(struct omap_dss_device *);
 static void omap_dss_unregister_device(struct omap_dss_device *);
 
 /* REGULATORS */
-
+#if 0
 struct regulator *dss_get_vdds_dsi(void)
 {
 	struct regulator *reg;
@@ -86,7 +86,7 @@ struct regulator *dss_get_vdds_sdi(void)
 
 	return reg;
 }
-
+#endif
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 static int dss_debug_show(struct seq_file *s, void *unused)
 {

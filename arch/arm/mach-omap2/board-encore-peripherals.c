@@ -498,9 +498,8 @@ printk("******IN boxer_twl_gpio_setup********\n");
 	return 0;
 }
 
-static struct regulator_consumer_supply encore_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+static struct regulator_consumer_supply encore_vpll2_supplies = {
+	.supply 	= "vpll2",
 };
 
 static struct regulator_consumer_supply encore_vdda_dac_supply =
@@ -515,8 +514,8 @@ static struct regulator_init_data encore_vpll2 = {
 		.valid_ops_mask         = REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies		= ARRAY_SIZE(encore_vpll2_supplies),
-	.consumer_supplies		= encore_vpll2_supplies,
+	.num_consumer_supplies		= 1,
+	.consumer_supplies		= &encore_vpll2_supplies,
 };
 
 static struct regulator_init_data encore_vdac = {

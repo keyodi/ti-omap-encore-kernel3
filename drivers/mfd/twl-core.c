@@ -921,12 +921,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		child = add_regulator(TWL4030_REG_VPLL2, pdata->vpll2,
-					features);
-
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-
 		child = add_regulator((features & TWL4030_VAUX2)
 					? TWL4030_REG_VAUX2_4030
 					: TWL4030_REG_VAUX2,

@@ -181,7 +181,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		DSSERR("failed to start device\n");
 		goto err_start_dev;
 	}
-
+#if 0
 	if (cpu_is_omap34xx()) {
 		r = regulator_enable(dpi.vdds_dsi_reg);
 		if (r)
@@ -191,7 +191,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	r = dss_runtime_get();
 	if (r)
 		goto err_get_dss;
-
+#endif
 	r = dispc_runtime_get();
 	if (r)
 		goto err_get_dispc;
@@ -229,8 +229,10 @@ err_get_dsi:
 err_get_dispc:
 	dss_runtime_put();
 err_get_dss:
+#if 0
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
+#endif
 err_reg_enable:
 	omap_dss_stop_device(dssdev);
 err_start_dev:
@@ -250,10 +252,10 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dispc_runtime_put();
 	dss_runtime_put();
-
+#if 0
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
-
+#endif
 	omap_dss_stop_device(dssdev);
 }
 EXPORT_SYMBOL(omapdss_dpi_display_disable);
@@ -338,7 +340,7 @@ EXPORT_SYMBOL(dpi_check_timings);
 int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
-
+#if 0
 	if (cpu_is_omap34xx() && dpi.vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
@@ -351,7 +353,7 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 
 		dpi.vdds_dsi_reg = vdds_dsi;
 	}
-
+#endif
 	if (dpi_use_dsi_pll(dssdev)) {
 		enum omap_dss_clk_source dispc_fclk_src =
 			dssdev->clocks.dispc.dispc_fclk_src;
