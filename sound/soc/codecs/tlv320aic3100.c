@@ -1536,10 +1536,6 @@ static int aic31xx_resume(struct snd_soc_codec *codec)
 	DBG(KERN_INFO "%s: entered\n", __func__);
 
 #ifdef CODEC_POWER_OFF
-	gpio_direction_output(AUDIO_CODEC_PWR_ON_GPIO, 1);
-	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 0);
-	/* RESET/ must be pulled low for at least 10ns */
-	msleep(1);
 	gpio_set_value(AUDIO_CODEC_PWR_ON_GPIO, 1);
 	/* sleep for 10 ms to allow the voltage to stabilize */
 	msleep(50);
