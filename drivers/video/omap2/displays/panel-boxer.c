@@ -114,6 +114,7 @@ static int boxer_panel_probe(struct omap_dss_device *dssdev)
 
 static void boxer_panel_remove(struct omap_dss_device *dssdev)
 {
+
 }
 
 static int boxer_panel_start(struct omap_dss_device *dssdev)
@@ -151,7 +152,7 @@ static int boxer_panel_enable(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void boxer_panel_disable(struct omap_dss_device *dssdev)
+static void boxer_panel_stop(struct omap_dss_device *dssdev)
 {
 	if (atomic_dec_and_test(&boxer_panel_is_enabled)) {
 		cancel_work_sync(&boxer_panel_work);
@@ -159,22 +160,22 @@ static void boxer_panel_disable(struct omap_dss_device *dssdev)
 		if (dssdev->platform_disable)
 			dssdev->platform_disable(dssdev);
 
-		regulator_disable(boxer_panel_regulator);
+		if (regulator_is_enabled(boxer_panel_regulator)) {
+			msleep(250);
+			regulator_disable(boxer_panel_regulator);
+		}
 	} else {
 		printk("%s: attempting to disable panel twice!\n", __FUNCTION__);
 		WARN_ON(1);
 	}
 
 	omapdss_dpi_display_disable(dssdev);
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void boxer_panel_stop(struct omap_dss_device *dssdev)
+static void boxer_panel_disable(struct omap_dss_device *dssdev)
 {
-	omapdss_dpi_display_disable(dssdev);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
+	boxer_panel_stop(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int boxer_panel_suspend(struct omap_dss_device *dssdev)
