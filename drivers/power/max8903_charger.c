@@ -35,8 +35,8 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
-#include <linux/slab.h>
 #include <linux/i2c/twl.h>
+#include <linux/slab.h>
 
 
 #define MAX8903_UOK_GPIO_FOR_IRQ 115
@@ -148,7 +148,6 @@ struct max8903_charger {
     u8 ftm;                /*Factory Test Mode, in this mode charger on/off is controlled by sysfs entry "ctrl_charge"*/
     struct power_supply usb;
     struct power_supply adapter;
-    int force_highpower;
 };
 
 
@@ -166,12 +165,6 @@ static inline void reset_charger_detect_fsm(void)
     twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
                       TRITON_USB_HW_CHRG_CTLR_EN,
                        TRITON_USB_DTCT_CTRL);
-}
-
-int max8903_check_power(void)
-{
-	return !gpio_get_value(MAX8903_DOK_GPIO_FOR_IRQ) ||
-	       !gpio_get_value(MAX8903_UOK_GPIO_FOR_IRQ);
 }
 
 /*~CEN control*/
@@ -219,6 +212,7 @@ void max8903_enable_charge(u8 enable)
             }
           break;
     }
+
        mutex_unlock(&charger_mutex);
 }
 
@@ -265,14 +259,8 @@ void max8903_charger_enable(int dtct_status)
                 gpio_direction_output(MAX8903_GPIO_CHG_USUS, 0);
                 charger->adapter_online = 1;
                 charger->adapter_active = 1;
-		if (charger->force_highpower < 0) {
-			charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-			printk("Forcing low power charging\n");
-		} else {
-			charger->adapter_curr_limit = AC_CURRENT_LIMIT;
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_AC);
-		}
+                charger->adapter_curr_limit = AC_CURRENT_LIMIT;
+                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_AC);
                 max17042_update_callback(1);
                 max8903_enable_charge(1);
                 power_supply_changed(&charger->adapter);
@@ -282,16 +270,9 @@ void max8903_charger_enable(int dtct_status)
                 gpio_direction_output(MAX8903_GPIO_CHG_USUS, 0);
                 charger->adapter_online = 1;
                 charger->adapter_active = 1;
-
-		if (charger->force_highpower > 0) {
-			charger->adapter_curr_limit = AC_CURRENT_LIMIT;
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_AC);
-			printk("Forcing high power charging\n");
-		} else {
-			charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
-			gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-		}
+                charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
+                gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
+                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
                 max17042_update_callback(1);
                 max8903_enable_charge(1);
                 power_supply_changed(&charger->adapter);
@@ -310,15 +291,9 @@ void max8903_charger_enable(int dtct_status)
 		printk("%s: %s Detected!\n", __FUNCTION__, charger_str[charger_type]);
                 charger->usb_online = 1;
                 charger->usb_active = 1;
-		if (charger->force_highpower > 0) {
-			charger->adapter_curr_limit = AC_CURRENT_LIMIT;
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_AC);
-			printk("Forcing high power charging\n");
-		} else {
-			charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
-			gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
-			gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-		}
+                charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
+                gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
+                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
                 max17042_update_callback(1);
                 max8903_enable_charge(1);
                 power_supply_changed(&charger->usb);
@@ -441,64 +416,8 @@ static ssize_t set_charge(struct device *dev,
 /*no need to read entry, write only for controlling the charging circuit*/
 static DEVICE_ATTR(ctrl_charge, S_IRUGO | S_IWUSR, NULL, set_charge);
 
-static ssize_t show_status(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	int ret;
-
-        ret = sprintf(buf, "DCM: %d\nIUSB: %dmA\n~DOK: %d\n~CEN: %d\n"
-		      "USUS: %d\n~UOK: %d\n~CHG: %d\n",
-		      gpio_get_value(MAX8903_GPIO_CHG_ILM),
-		      gpio_get_value(MAX8903_GPIO_CHG_IUSB)?500:100,
-		      gpio_get_value(MAX8903_DOK_GPIO_FOR_IRQ),
-		      gpio_get_value(MAX8903_GPIO_CHG_EN),
-		      gpio_get_value(MAX8903_GPIO_CHG_USUS),
-		      gpio_get_value(MAX8903_UOK_GPIO_FOR_IRQ),
-		      gpio_get_value(MAX8903_GPIO_CHG_STATUS));
-
-        return ret;
-}
-static DEVICE_ATTR(status, 0444, show_status, NULL);
-
-static ssize_t show_mode(struct device *dev,
-			   struct device_attribute *attr, char *buf)
-{
-	int ret;
-
-	if (charger->force_highpower)
-		ret = sprintf(buf, "force %s\n",
-			      (charger->force_highpower>0)?"high":"low");
-	else if (charger->adapter_active || charger->usb_active)
-		ret = sprintf(buf, "%s\n",
-			     gpio_get_value(MAX8903_GPIO_CHG_ILM)?"high":"low");
-	else
-		ret = sprintf(buf, "default\n");
-
-        return ret;
-}
-
-static ssize_t set_mode(struct device *dev,
-        struct device_attribute *attr, const char *buf, size_t count)
-{
-	if (!strncmp(buf, "high", 4))
-		charger->force_highpower = 1;
-	else if (!strncmp(buf, "low", 3))
-		charger->force_highpower = -1;
-	else
-		charger->force_highpower = 0;
-
-	/* If the charger is active, update the power draw */
-	if (charger->adapter_active || charger->usb_active)
-		max8903_charger_enable(0);
-
-	return count;
-}
-static DEVICE_ATTR(mode, 0644, show_mode, set_mode);
-
 static struct attribute *max8903_control_sysfs_entries[] = {
     &dev_attr_ctrl_charge.attr,
-    &dev_attr_status.attr,
-    &dev_attr_mode.attr,
     NULL,
 };
 
@@ -541,7 +460,6 @@ static int max8903_charger_probe(struct platform_device *pdev)
     mc->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH; /* default limit is high limit */
     mc->usb_online = 0;
     mc->usb_active = 0;
-    mc->force_highpower = 0;
 
     ret = power_supply_register(&pdev->dev, &mc->adapter);
     if (ret) {
