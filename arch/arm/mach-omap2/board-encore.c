@@ -190,11 +190,7 @@ device_initcall(encore_wifi_init);
 static void __init omap_encore_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
-	//omap_mux_init_gpio(ZOOM3_EHCI_RESET_GPIO, OMAP_PIN_OUTPUT);
-	//omap_mux_init_gpio(ZOOM3_McBSP3_BT_GPIO, OMAP_PIN_OUTPUT);
-	//usbhs_init(&usbhs_bdata);
 
-	//encore_wifi_init();
 	encore_peripherals_init();
 	encore_display_init();
 	omap_register_ion();
@@ -205,7 +201,6 @@ static void __init omap_encore_init(void)
 
 static void __init encore_reserve(void)
 {
-	omap_init_ram_size();
 	/* do the static reservations first */
 	memblock_remove(OMAP3_PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
 

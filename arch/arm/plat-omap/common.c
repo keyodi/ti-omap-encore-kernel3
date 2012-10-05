@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/omapfb.h>
-#include <asm/setup.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
@@ -27,7 +26,6 @@
 
 struct omap_board_config_kernel *omap_board_config __initdata;
 int omap_board_config_size;
-phys_addr_t omap4_total_ram_size;
 
 static const void *__init get_config(u16 tag, size_t len,
 		int skip, size_t *len_out)
@@ -68,17 +66,4 @@ void __init omap_reserve(void)
 	omap_vram_reserve_sdram_memblock();
 	omap_dsp_reserve_sdram_memblock();
 	omap_ipu_reserve_sdram_memblock();
-}
-
-	void omap_init_ram_size(void)
-{
-       int i;
-
-       for (i = 0; i < meminfo.nr_banks; i++)
-       omap4_total_ram_size += meminfo.bank[i].size;
-}
-
-phys_addr_t omap_total_ram_size(void)
-{
-       return omap4_total_ram_size;
 }
