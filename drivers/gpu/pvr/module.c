@@ -123,7 +123,6 @@ module_param(gPVRDebugLevel, uint, 0644);
 MODULE_PARM_DESC(gPVRDebugLevel, "Sets the level of debug output (default 0x7)");
 #endif 
 
-#if 0
 #if defined(CONFIG_SGX_DVFS_MODE_NONE)
 #define DEFAULT_IDLE_MODE	0
 #elif defined(CONFIG_SGX_DVFS_MODE_LINEAR)
@@ -143,7 +142,6 @@ module_param(sgx_idle_timeout, uint, 0644);
 
 uint sgx_apm_latency = SYS_SGX_ACTIVE_POWER_LATENCY_MS;
 module_param(sgx_apm_latency, uint, 0644);
-#endif
 
 #if defined(CONFIG_ION_OMAP)
 #include <linux/ion.h>
