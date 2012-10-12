@@ -88,7 +88,7 @@
 
 /* Flags for using different support functionalities of the codec */
 
-#define CODEC_POWER_OFF
+//#define CODEC_POWER_OFF
 #define AIC3100_CODEC_SUPPORT
 #define ACCLAIM_SUPPORT
 /*#define AIC3110_CODEC_SUPPORT */
@@ -1552,7 +1552,8 @@ static int aic31xx_resume(struct snd_soc_codec *codec)
 
 	/* Perform the Device Soft Power UP */
 	snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
-
+	/* Added delay as per the suggestion from TI Audio team */
+        mdelay (50);
 	DBG("aic31xx_resume: Suspend_bias_level %d\r\n",
 		codec->dapm.suspend_bias_level);
 	DBG("aic31xx_resume: codec_bias_level %d\r\n", codec->dapm.bias_level);
