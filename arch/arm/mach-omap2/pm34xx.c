@@ -112,9 +112,17 @@ static void omap3_enable_io_chain(void)
 				       "activation failed.\n");
 				return;
 			}
-			omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
-					     WKUP_MOD, PM_WKEN);
 		}
+		/*
+		 * Moving clearing of ST_IO_CHAIN outside of while loop.
+		 * When IO chain is triggered, s/w should wait for IO chain to
+		 * complete. Which is getting done in above while loop. Once the
+		 * bit is set, it should be cleared outside the while loop.
+		 * Moving the clearing of IO CHAIN status outside of loop. Else
+		 * we won't be waiting enough for IO chain to complete.
+		 */
+		omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
+					     WKUP_MOD, PM_WKEN);
 	}
 }
 
@@ -403,12 +411,6 @@ void omap_sram_idle(bool suspend)
 	/* Enable IO-PAD and IO-CHAIN wakeups */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
-	if (omap3_has_io_wakeup() &&
-	    (per_next_state < PWRDM_POWER_ON ||
-	     core_next_state < PWRDM_POWER_ON)) {
-		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
-		omap3_enable_io_chain();
-	}
 
 	pwrdm_pre_transition();
 
@@ -455,6 +457,12 @@ void omap_sram_idle(bool suspend)
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
+		if ((core_next_state == PWRDM_POWER_OFF) &&
+			(per_next_state > PWRDM_POWER_OFF)) {
+			core_next_state = PWRDM_POWER_RET;
+			pwrdm_set_next_pwrst(core_pwrdm,
+						core_next_state);
+		}
 		if (core_next_state == PWRDM_POWER_OFF) {
 			omap2_prm_set_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
 						OMAP3430_GR_MOD,
@@ -462,13 +470,16 @@ void omap_sram_idle(bool suspend)
 			omap3_core_save_context();
 			omap3_cm_save_context();
 
-		} else {
+		} else if (core_next_state == PWRDM_POWER_RET) {
 			omap2_prm_set_mod_reg_bits(OMAP3430_AUTO_RET_MASK,
 						OMAP3430_GR_MOD,
 						OMAP3_PRM_VOLTCTRL_OFFSET);
 
 
 		}
+		/* Enable IO-PAD and IO-CHAIN wakeups */
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
+		omap3_enable_io_chain();
 	}
 
 	omap3_intc_prepare_idle();
@@ -515,7 +526,7 @@ void omap_sram_idle(bool suspend)
 			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
-		else
+		else if (core_next_state == PWRDM_POWER_RET)
 			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_RET_MASK,
 						OMAP3430_GR_MOD,
 						OMAP3_PRM_VOLTCTRL_OFFSET);
