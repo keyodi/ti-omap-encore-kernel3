@@ -124,9 +124,6 @@ struct otg_transceiver {
 	/* ask the link to restore internal context */
 	void    (*link_restore_context)(struct otg_transceiver *otg);
 
-	/* ask the link to always be in an active state */
-	void    (*link_force_active)(int enable);
-
 };
 
 
@@ -290,6 +287,16 @@ static inline void
 otg_unregister_notifier(struct otg_transceiver *otg, struct notifier_block *nb)
 {
 	atomic_notifier_chain_unregister(&otg->notifier, nb);
+}
+
+/* notifiers */
+static inline int
+otg_get_link_status(struct otg_transceiver *otg)
+{
+	if (otg->get_link_status != NULL)
+		return otg->get_link_status(otg);
+	else
+		return 0;
 }
 
 /* for OTG controller drivers (and maybe other stuff) */
