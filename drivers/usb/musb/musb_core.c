@@ -99,6 +99,7 @@
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include "musb_core.h"
 
@@ -120,7 +121,8 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" MUSB_DRIVER_NAME);
 
-
+char done_delayed_work=0;
+int reboot_flag=0;
 /*-------------------------------------------------------------------------*/
 
 static inline struct musb *dev_to_musb(struct device *dev)
@@ -395,6 +397,10 @@ void musb_hnp_stop(struct musb *musb)
  * @param power
  */
 
+extern int __gpio_get_value(unsigned gpio);
+extern unsigned int android_adb_open;		//Henry Li@addby gavin 4010
+extern unsigned int mass_storage_flag;		//Henry Li@addby gavin 4010
+extern unsigned int previous_status;
 static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				u8 devctl, u8 power)
 {
@@ -403,6 +409,17 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	dev_dbg(musb->controller, "<== Power=%02x, DevCtl=%02x, int_usb=0x%x\n", power, devctl,
 		int_usb);
 
+/* <-- LH_SWRD_CL1_Henry@2011.9.30 improve USB connection stability (not break down frequently) */
+	if ( (int_usb &  MUSB_INTR_SOF) == MUSB_INTR_SOF )		//Henry Li
+		if  ((power & (MUSB_POWER_ISOUPDATE | MUSB_POWER_HSMODE)) == (MUSB_POWER_ISOUPDATE | MUSB_POWER_HSMODE))
+			if ((previous_status == 1) && (gpio_get_value(114) == 0))
+			    if (musb->xceiv->state == OTG_STATE_B_PERIPHERAL)
+				if ( (android_adb_open == 1) || (mass_storage_flag == 1)  ) {
+					handled = IRQ_HANDLED;
+					schedule_work(&musb->irq_work);
+					return handled;
+				}
+/* LH_SWRD_CL1_Henry@2011.9.30 improve USB storage connection stability (not break down frequently) -->*/
 	/* in host mode, the peripheral may issue remote wakeup.
 	 * in peripheral mode, the host may resume the link.
 	 * spurious RESUME irqs happen too, paired with SUSPEND.
@@ -590,6 +607,18 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	}
 
 #endif
+/* <-- LH_SWRD_CL1_Henry@2011.6.18 work around way to setup usb_connected properly */
+	if ((int_usb & (MUSB_INTR_SUSPEND | MUSB_INTR_SOF)) == (MUSB_INTR_SUSPEND | MUSB_INTR_SOF)) {
+		if ((power & (MUSB_POWER_ISOUPDATE | MUSB_POWER_HSMODE)) == (MUSB_POWER_ISOUPDATE | MUSB_POWER_HSMODE)) {
+			if (0 == done_delayed_work) {
+				cancel_delayed_work(&musb->delayed_irq_work);
+				schedule_delayed_work(&musb->delayed_irq_work, msecs_to_jiffies(120));
+				done_delayed_work = 1;
+			}
+		}
+
+	}
+
 	if (int_usb & MUSB_INTR_SUSPEND) {
 		dev_dbg(musb->controller, "SUSPEND (%s) devctl %02x power %02x\n",
 			otg_state_string(musb->xceiv->state), devctl, power);
@@ -1551,6 +1580,15 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	dev_dbg(musb->controller, "** IRQ %s usb%04x tx%04x rx%04x\n",
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
+/* <-- LH_SWRD_CL1_Henry@2011.7.25 work around way to make adb connect properly */
+	if (((musb->int_usb & 0x0080) == 0x0080) && (reboot_flag == 0)) {
+		printk(KERN_CRIT "Initiating system reboot.\n");
+		reboot_flag = 1;
+		cancel_delayed_work(&musb->reboot_work);
+		schedule_delayed_work(&musb->reboot_work, msecs_to_jiffies(1000));	// 1s = 1000 is OK
+		return retval;
+	}
+/* LH_SWRD_CL1_Henry@2011.7.25 work around way to make adb connect properly --> */
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
@@ -1811,6 +1849,57 @@ static void musb_irq_work(struct work_struct *data)
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
 }
+/* <-- LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly */
+extern void musb_g_disconnect_nolock(struct musb *musb);
+static void musb_usb_connected_irq_work(struct work_struct *data)
+{
+	struct musb *musb = container_of(data, struct musb, delayed_irq_work.work);
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+
+	if  (( !musb->ignore_disconnect) && (__gpio_get_value(114) == 1)) {
+		/* Release the wakelock */
+		//wake_unlock(&plat->musb_lock);
+
+		switch (musb->xceiv->state) {
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+		case OTG_STATE_B_PERIPHERAL:
+		case OTG_STATE_B_IDLE:
+			musb_g_disconnect_nolock(musb);
+			break;
+#endif	/* GADGET */
+		default:
+			WARNING("unhandled DISCONNECT transition (%s)\n",
+				otg_state_string(musb->xceiv->state));
+			break;
+		}
+	}
+	done_delayed_work = 0;
+}
+/* LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly -->*/
+
+extern void read_vbus_power(u8 *data3v1,  u8* data1v8,  u8* data1v5);
+extern void write_vbus_power(u8 data3v1, u8 data1v8, u8 data1v5);
+/* <-- LH_SWRD_CL1_Henry@2011.7.25 work around way to make adb connect properly */
+static void musb_usb_reboot_work(struct work_struct *data)
+{
+	struct musb *musb = container_of(data, struct musb, reboot_work.work);
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+
+#if 0
+	kernel_restart(NULL);
+#else
+    printk("--Wow--reconnect USB cable in %s\n", __FUNCTION__);
+	u8 data3v1, data1v8, data1v5;
+	read_vbus_power(&data3v1,  &data1v8,  &data1v5);
+	write_vbus_power(0, 0, 0);
+	msleep(1000);
+	write_vbus_power(data3v1, data1v8, data1v5);
+	msleep(100);
+#endif
+}
+/* LH_SWRD_CL1_Henry@2011.7.25 work around way to make adb connect properly -->*/
 
 /* --------------------------------------------------------------------------
  * Init support
@@ -1998,6 +2087,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
 	INIT_WORK(&musb->hz_mode_work, musb_hz_mode_work);
+/* <-- LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly */	
+	INIT_DELAYED_WORK(&musb->delayed_irq_work, musb_usb_connected_irq_work);
+/* LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly -->*/	
+/* <-- LH_SWRD_CL1_Henry@2011.7.25 work around way to make adb connect properly -->*/
+	INIT_DELAYED_WORK(&musb->reboot_work, musb_usb_reboot_work);
 
 	/* attach to the IRQ */
 	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {

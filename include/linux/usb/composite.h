@@ -36,6 +36,8 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+//&*&*&*Beacon_20120322
+#include <linux/switch.h>
 
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
@@ -361,6 +363,15 @@ struct usb_composite_dev {
 
 	/* protects deactivations and delayed_status counts*/
 	spinlock_t			lock;
+	//&*&*&*Beacon_20120322
+	bool				connected;
+//&*&*&*SJ1_20110530, add "usb_connected" switch state for android gingerbread.
+	/* switch indicating connected/disconnected state */
+	struct switch_dev		sw_connected;
+	/* switch indicating current configuration */
+	struct switch_dev		sw_config;	//20110620, JimmySu INC4.4P1 Patch
+//&*&*&*SJ2_20110530, add "usb_connected" switch state for android gingerbread.
+	struct work_struct switch_work;
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);

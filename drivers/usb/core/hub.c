@@ -2619,7 +2619,8 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 }
 
 #endif
-
+/* Henry: fix hub_resume activate error */
+int 	hub_resume_suspend_flag=0;
 static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_hub		*hub = usb_get_intfdata (intf);
@@ -2642,6 +2643,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 
 	/* stop khubd and related activity */
 	hub_quiesce(hub, HUB_SUSPEND);
+	hub_resume_suspend_flag=0;
 	return 0;
 }
 
@@ -2650,7 +2652,9 @@ static int hub_resume(struct usb_interface *intf)
 	struct usb_hub *hub = usb_get_intfdata(intf);
 
 	dev_dbg(&intf->dev, "%s\n", __func__);
+	if (0 == hub_resume_suspend_flag )
 	hub_activate(hub, HUB_RESUME);
+	hub_resume_suspend_flag=1;
 	return 0;
 }
 
@@ -2660,6 +2664,7 @@ static int hub_reset_resume(struct usb_interface *intf)
 
 	dev_dbg(&intf->dev, "%s\n", __func__);
 	hub_activate(hub, HUB_RESET_RESUME);
+	hub_resume_suspend_flag=1;
 	return 0;
 }
 

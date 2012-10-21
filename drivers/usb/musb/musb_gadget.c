@@ -2209,6 +2209,52 @@ void musb_g_disconnect(struct musb *musb)
 	musb->is_active = 0;
 }
 
+void musb_g_disconnect_nolock(struct musb *musb)
+{
+	void __iomem	*mregs = musb->mregs;
+	u8	devctl = musb_readb(mregs, MUSB_DEVCTL);
+
+	dev_dbg(musb->controller, "devctl %02x\n", devctl);
+
+	/* clear HR */
+	musb_writeb(mregs, MUSB_DEVCTL, devctl & MUSB_DEVCTL_SESSION);
+
+	/* don't draw vbus until new b-default session */
+	(void) musb_gadget_vbus_draw(&musb->g, 0);
+
+	musb->g.speed = USB_SPEED_UNKNOWN;
+	if (musb->gadget_driver && musb->gadget_driver->disconnect) {
+		//spin_unlock(&musb->lock);
+		musb->gadget_driver->disconnect(&musb->g);
+		//spin_lock(&musb->lock);
+	}
+
+	switch (musb->xceiv->state) {
+	default:
+#ifdef	CONFIG_USB_MUSB_OTG
+		dev_dbg(musb->controller, "Unhandled disconnect %s, setting a_idle\n",
+			otg_state_string(musb->xceiv->state));
+		musb->xceiv->state = OTG_STATE_A_IDLE;
+		MUSB_HST_MODE(musb);
+		break;
+	case OTG_STATE_A_PERIPHERAL:
+		musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		MUSB_HST_MODE(musb);
+		break;
+	case OTG_STATE_B_WAIT_ACON:
+	case OTG_STATE_B_HOST:
+#endif
+	case OTG_STATE_B_PERIPHERAL:
+	case OTG_STATE_B_IDLE:
+		musb->xceiv->state = OTG_STATE_B_IDLE;
+		break;
+	case OTG_STATE_B_SRP_INIT:
+		break;
+	}
+
+	musb->is_active = 0;
+}
+
 void musb_g_reset(struct musb *musb)
 __releases(musb->lock)
 __acquires(musb->lock)

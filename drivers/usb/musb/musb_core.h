@@ -433,6 +433,10 @@ struct musb {
 	struct work_struct	irq_work;
 	struct workqueue_struct	*otg_notifier_wq;
 	struct work_struct	hz_mode_work;
+/* <-- LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly */
+	struct delayed_work delayed_irq_work;
+/* LH_SWRD_CL1_Henry@2011.6.30 work around way to setup usb_connected properly -->*/	
+       struct delayed_work reboot_work;
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
