@@ -370,7 +370,7 @@ void omap_sram_idle(bool suspend)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
-	int per_going_off;
+	int per_going_off = 0; //Don't use OMAP3 GPIO glitch work around
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
 	int cam_fclken;
@@ -445,24 +445,13 @@ void omap_sram_idle(bool suspend)
 	}
 
 	/* PER */
-	if (per_next_state == PWRDM_POWER_OFF)
-			if (core_next_state != PWRDM_POWER_OFF)
-				per_next_state = PWRDM_POWER_RET;
-
 	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
-		omap2_gpio_prepare_for_idle(per_next_state, suspend);
-
-		pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
+		//per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
+		omap2_gpio_prepare_for_idle(per_going_off, suspend);
 	}
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
-		if ((core_next_state == PWRDM_POWER_OFF) &&
-			(per_next_state > PWRDM_POWER_OFF)) {
-			core_next_state = PWRDM_POWER_RET;
-			pwrdm_set_next_pwrst(core_pwrdm,
-						core_next_state);
-		}
 		if (core_next_state == PWRDM_POWER_OFF) {
 			omap2_prm_set_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
 						OMAP3430_GR_MOD,
@@ -470,7 +459,7 @@ void omap_sram_idle(bool suspend)
 			omap3_core_save_context();
 			omap3_cm_save_context();
 
-		} else if (core_next_state == PWRDM_POWER_RET) {
+		} else {
 			omap2_prm_set_mod_reg_bits(OMAP3430_AUTO_RET_MASK,
 						OMAP3430_GR_MOD,
 						OMAP3_PRM_VOLTCTRL_OFFSET);
@@ -526,7 +515,7 @@ void omap_sram_idle(bool suspend)
 			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_OFF_MASK,
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
-		else if (core_next_state == PWRDM_POWER_RET)
+		else
 			omap2_prm_clear_mod_reg_bits(OMAP3430_AUTO_RET_MASK,
 						OMAP3430_GR_MOD,
 						OMAP3_PRM_VOLTCTRL_OFFSET);
