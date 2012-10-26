@@ -74,6 +74,18 @@ static void __init boxer_backlight_init(void)
         gpio_set_value(LCD_CABC1_GPIO,0);
 }
 
+static int encore_panel_enable_lcd(struct omap_dss_device *dssdev)
+{
+	boxer_backlight_set_power(NULL, 1);
+
+	return 0;
+}
+
+static void encore_panel_disable_lcd(struct omap_dss_device *dssdev)
+{
+	boxer_backlight_set_power(NULL, 0);
+}
+
 static struct omap_dss_device evt_lcd_device = {
 	.phy		= {
 		.dpi	= {
@@ -111,6 +123,8 @@ static struct omap_dss_device evt_lcd_device = {
 	.driver_name = "boxer_panel",
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.channel = OMAP_DSS_CHANNEL_LCD,
+	.platform_enable  = encore_panel_enable_lcd,
+	.platform_disable  = encore_panel_disable_lcd,
 };
 
 static struct omap_dss_device *evt_dss_devices[] = {
@@ -123,12 +137,19 @@ static struct omap_dss_board_info evt_dss_data = {
 	.default_device = &evt_lcd_device,
 };
 
+static struct omap2_mcspi_device_config evt_lcd_mcspi_config = {
+	.turbo_mode             = 0,
+	.single_channel         = 1,  /* 0: slave, 1: master */
+
+};
+
 struct spi_board_info evt_spi_board_info[] __initdata = {
 	{
 		.modalias               = "boxer_disp_spi",
 		.bus_num                = 4,
 		.chip_select            = 0,
 		.max_speed_hz           = 375000,
+		.controller_data        = &evt_lcd_mcspi_config,
 	},
 };
 
