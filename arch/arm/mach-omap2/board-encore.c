@@ -21,6 +21,9 @@
 #include <linux/skbuff.h>
 #include <linux/ti_wilink_st.h>
 #include <linux/wl12xx.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/mm.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -48,6 +51,10 @@
 #endif
 
 #define WILINK_UART_DEV_NAME            "/dev/ttyO1"
+
+/* These are defined in arch/arm/kernel/setup.c */
+extern unsigned int system_serial_low;
+extern unsigned int system_serial_high;
 
 static void __init omap_encore_init_early(void)
 {
@@ -213,6 +220,37 @@ static void __init encore_reserve(void)
 #ifdef CONFIG_OMAP_MUX
   #error "EVT1A port relies on the bootloader for MUX configuration."
 #endif
+
+/*
+ * Android expects the bootloader to pass the device serial number as a
+ * parameter on the kernel command line, but encore's bootloader doesn't
+ * do this.  Since the kernel already knows the serial number, let's just
+ * add the appropriate parameter to the command line we present to userspace
+ * (in /proc/cmdline).
+ */
+#define SERIALNO_PARAM "androidboot.serialno"
+static int __init encore_cmdline_set_serialno_hack(void)
+{
+	/*
+	 * The final cmdline will have 16 digits, a space, an =, and a trailing
+	 * \0 as well as the contents of saved_command_line and SERIALNO_PARAM,
+	 * hence the 19
+	 */
+	size_t len = strlen(saved_command_line) + strlen(SERIALNO_PARAM) + 19;
+	char *buf = kmalloc(len, GFP_ATOMIC);
+	if (buf) {
+		snprintf(buf, len, "%s %s=%08x%08x",
+				saved_command_line,
+				SERIALNO_PARAM,
+				system_serial_high, system_serial_low);
+		/* XXX This leaks strlen(saved_command_line) bytes of memory
+		 * Do we care? */
+		saved_command_line = buf;
+	}
+
+	return 0;
+}
+device_initcall(encore_cmdline_set_serialno_hack);
 
 MACHINE_START(ENCORE, "encore")
 	.boot_params	= 0x80000100,
