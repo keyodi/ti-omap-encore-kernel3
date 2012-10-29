@@ -31,6 +31,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <plat/omap-pm.h>
+#include <plat/gpu.h>
 
 #include "sgxdefs.h"
 #include "services_headers.h"

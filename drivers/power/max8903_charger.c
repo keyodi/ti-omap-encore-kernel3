@@ -35,64 +35,18 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
-#include <linux/i2c/twl.h>
 #include <linux/slab.h>
-
-
-#define MAX8903_UOK_GPIO_FOR_IRQ 115
-#define MAX8903_DOK_GPIO_FOR_IRQ 114
-#define MAX8903_GPIO_CHG_EN      110
-#define MAX8903_GPIO_CHG_STATUS  111
-#define MAX8903_GPIO_CHG_FLT     101
-#define MAX8903_GPIO_CHG_IUSB    102
-#define MAX8903_GPIO_CHG_USUS    104
-#define MAX8903_GPIO_CHG_ILM     61
+#include <linux/power/max8903.h>
+#include <linux/i2c/twl.h>
+#include <linux/usb/otg.h>
 
 #define DEBUG(x...)   printk(x)
 //#define DEBUG(x...)
 
-/*macro for TRITON4030 usb controller reg access*/
-#define TRITON_USB_DTCT_CTRL       0x02
-#define TRITON_USB_SW_CHRG_CTLR_EN (1 << 1)
-#define TRITON_USB_HW_CHRG_CTLR_EN (1 << 0)
-
-#define TRITON_USB_CHGR_USB       0x4
-#define TRITON_USB_CHGR_WALL      0x8
-#define TRITON_USB_CHGR_UNKNOWN   0xC
-#define TRITON_USB_CHGR_MSK       0xC
-
-#define TRITON_USB_500_FSM      (1<<6)
-#define TRITON_USB_100_FSM      (1<<5)
-#define TRITON_USB_FSM_MSK      (3<<5)
-
-#define TRITON_USB_SW_CHRG_CTRL 0x03
-
-#define TRITON_USB_CHG_DET_EN_SW (1 << 7)
-#define TRITON_USB_CHGD_SERX_EN_LOWV (1<<2)
-
-#define TRITON_CHGD_SERX_DM_LOWV    (1 << 5)
-#define TRITON_CHGD_SERX_DP_LOWV    (1 << 4)
-
-#define TRITON_USB_OTG_CTRL      0x0A
-#define TRITON_USB_OTG_CTRL_CLR  0x0C
-#define TRITON_USB_DM_DP_PD      (0x3 << 1)
-
-#define TRITON_USB_DBG_CTRL      0x15
-#define TRITON_USB_DMDP_HV       0x3
-#define TRITON_USB_DMDP_LV       0x0
-#define TRITON_USB_DMDP_MSK      0x3
-
-#define OPMODE_MASK       	 (3 << 3)
-#define OPMODE_NON_DRIVING       (1 << 3)
-#define SUSPENDM                 (1 << 6)
-#define TRITON_USB_FUNC_CTRL     0x4
-#define TRITON_USB_FUNC_CTRL_SET 0x5
-#define TRITON_USB_FUNC_CTRL_CLR 0x6
-
 /*amperage def*/
-#define USB_CURRENT_LIMIT_LOW    100000   /* microAmp */
-#define USB_CURRENT_LIMIT_HIGH   500000   /* microAmp */
-#define AC_CURRENT_LIMIT        1900000  /* microAmp */
+#define USB_CURRENT_LIMIT_LOW    100   /* mA */
+#define USB_CURRENT_LIMIT_HIGH   500   /* mA */
+#define AC_CURRENT_LIMIT        1900   /* mA */
 
 #define CHG_ILM_SELECT_AC   1
 #define CHG_ILM_SELECT_USB  0
@@ -100,45 +54,24 @@
 #define CHG_IUSB_SELECT_500mA   1
 #define CHG_IUSB_SELECT_100mA   0
 
-#define DEBOUNCE_TIME   (msecs_to_jiffies(500))
-
 /*polarity def*/
 #define ENABLED   0
 #define DISABLED  1
 
-/*charger type def*/
-#define DC_STS     (1<<2)
-#define VBUS_STS   (1<<1)
-#define DMDP_STS   (1<<0)
-
-
-#define CHARGER_MAX_TYPE     8
-#define DC_WALL_CHARGER      (DC_STS)
-#define BN_USB_CHARGER       (DC_STS|VBUS_STS)
-#define BN_WALL_CHARGER      (DC_STS|VBUS_STS|DMDP_STS)
-#define STD_USB_CHARGER      (VBUS_STS)
-#define STD_WALL_CHARGER     (VBUS_STS|DMDP_STS)
-#define INVALID_CHARGER_0    0
-#define INVALID_CHARGER_1    1
-#define INVALID_CHARGER_5    5
-
-const char* charger_str[CHARGER_MAX_TYPE]={"INVALID CHARGER",
-                                                         "INVALID CHARGER",
-                                                         "USB CHARGER(500mA)",
-                                                         "WALL CHARGER(500mA)",
-                                                         "DC CHARGER(2A)",
-                                                         "INVALID CHARGER",
-                                                         "B&N USB  CHARGER(500mA)",
-                                                         "B&N WALL CHARGER(2A)"};
+#define STS_HW_CONDITIONS		0x0F
 
 extern void max17042_update_callback(u8 charger_in);
 
 DEFINE_MUTEX(charger_mutex);
-static DECLARE_COMPLETION(charger_probed);
 
-/*data struct for the charger status and control*/
 struct max8903_charger {
     struct delayed_work max8903_charger_detect_work;
+    struct notifier_block nb;
+    struct otg_transceiver *otg;
+    unsigned int detected_charger_current;
+    unsigned long detected_event;
+    unsigned int detected_charger;
+    unsigned int usb_max_power;
     int adapter_active;
     int adapter_online;
     int adapter_curr_limit;
@@ -146,74 +79,66 @@ struct max8903_charger {
     int usb_online;
     u8 temperature_ok;
     u8 ftm;                /*Factory Test Mode, in this mode charger on/off is controlled by sysfs entry "ctrl_charge"*/
+    int flt_irq;
+    // Init from resources
+    unsigned int max8903_gpio_chg_en;
+    unsigned int max8903_gpio_chg_status;
+    unsigned int max8903_gpio_chg_flt;
+    unsigned int max8903_gpio_chg_iusb;
+    unsigned int max8903_gpio_chg_usus;
+    unsigned int max8903_gpio_chg_ilm;
+    unsigned int max8903_gpio_chg_uok;
+    unsigned int max8903_gpio_chg_dok;
     struct power_supply usb;
     struct power_supply adapter;
+    struct delayed_work usb_work;
 };
-
-
-static struct max8903_charger* charger;
-int uok_irq=0,dok_irq=0;
 
 static inline void reset_charger_detect_fsm(void)
 {
-    /*enable SW control mode of TRITON USB detection */
-    twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
-                       TRITON_USB_SW_CHRG_CTLR_EN,
-                       TRITON_USB_DTCT_CTRL);
-
-    /*enable HW control mode of TRITON USB detection (FSM mode)*/
-    twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
-                      TRITON_USB_HW_CHRG_CTLR_EN,
-                       TRITON_USB_DTCT_CTRL);
 }
 
 /*~CEN control*/
-void max8903_enable_charge(u8 enable)
+void max8903_enable_charge(struct max8903_charger *charger, u8 enable)
 {
     int prev_status;
 
     /*this code will be triggered for FTM only*/
-    if(charger->ftm)
+    if (charger->ftm)
     {
-        if(enable){
+        if (enable) {
                 printk("MAX8903-TESTING: Charger is now On !\n");
-                gpio_set_value(MAX8903_GPIO_CHG_EN,ENABLED);
-            }
-        else{
+                gpio_set_value(charger->max8903_gpio_chg_en,ENABLED);
+        }
+        else {
                 printk("MAX8903-TESTING: Charger is now Off !\n");
-                gpio_set_value(MAX8903_GPIO_CHG_EN,DISABLED);
+                gpio_set_value(charger->max8903_gpio_chg_en,DISABLED);
         }
         return;
     }
 
     /*probe previous charging status*/
     mutex_lock(&charger_mutex);
-    prev_status=gpio_get_value(MAX8903_GPIO_CHG_EN);
+    prev_status = gpio_get_value(charger->max8903_gpio_chg_en);
 
     switch(prev_status)
     {
-    case ENABLED:
-          if(enable){
-                printk("MAX8903: Charging is already enabled!\n");
-          }
-          else{
-                gpio_set_value(MAX8903_GPIO_CHG_EN,DISABLED);
+        case ENABLED:
+            if(!enable) {
+                gpio_set_value(charger->max8903_gpio_chg_en,DISABLED);
                 printk("MAX8903: Charging is now disabled!\n");
             }
-          break;
-    default:
-    case DISABLED:
-           if(enable){
+            break;
+        default:
+        case DISABLED:
+            if (enable) {
                 printk("MAX8903: Charging is now enabled!\n");
-                gpio_set_value(MAX8903_GPIO_CHG_EN,ENABLED);
-          }
-          else{
-                printk("MAX8903: Charging is already disabled!\n");
+                gpio_set_value(charger->max8903_gpio_chg_en,ENABLED);
             }
-          break;
+            break;
     }
 
-       mutex_unlock(&charger_mutex);
+    mutex_unlock(&charger_mutex);
 }
 
 /*charger differentiation*/
@@ -226,404 +151,534 @@ void max8903_enable_charge(u8 enable)
   IV.  USB charger: VBUS only,D+/D- not shorted,charge via VBUS,limit 500mA 
   V.   USB charger: VBUS only,D+/D- shorted,charge via VBUS,limit 500mA
 */
-void max8903_charger_enable(int dtct_status)
+
+void max8903_charger_enable(struct max8903_charger *charger, int current_val)
 {
-    u8 charger_type = 0;
+	int uok = 0;
 
-    DEBUG("%s: dtct_status 0x%02x\n", __FUNCTION__, dtct_status );
+#ifdef TRUST_UOK
+	uok = gpio_get_value(charger->max8903_gpio_chg_uok);
+#endif
 
-    wait_for_completion(&charger_probed);
+	/* only enable charging at all, if VBUS is present (uok low) */
+	if (uok != 0)
+	{
+		current_val = 0;
+		printk("MAX8903: No VBUS Detected through UOK.\n");
+	}
 
-    /*check DC*/
-    if ( !gpio_get_value(MAX8903_DOK_GPIO_FOR_IRQ) ) {
-	charger_type |= DC_STS;
-    }
+	if (current_val >= AC_CURRENT_LIMIT) {
+		int dok = gpio_get_value(charger->max8903_gpio_chg_dok);
 
-    /*check VBUS*/
-    if ( !gpio_get_value(MAX8903_UOK_GPIO_FOR_IRQ) ) {
-	charger_type |= VBUS_STS;
-    }
+		gpio_direction_output(charger->max8903_gpio_chg_usus, 0);
+		charger->adapter_online = 1;
+		charger->adapter_active = 1;
 
-    if ( charger_type ) {
-	/* have to have either VBUS or DC to be a charger -- otherwise it's an unplug */
+		// If standared USB cable detected, limit current to 500mA
+		if (dok == 1 && uok == 0 && current_val >= USB_CURRENT_LIMIT_HIGH)
+		{
+			charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
+			gpio_set_value(charger->max8903_gpio_chg_iusb, CHG_IUSB_SELECT_500mA);
+			gpio_set_value(charger->max8903_gpio_chg_ilm, CHG_ILM_SELECT_USB);
+		}
+		else
+		{
+			charger->adapter_curr_limit = AC_CURRENT_LIMIT;
+			gpio_set_value(charger->max8903_gpio_chg_ilm, CHG_ILM_SELECT_AC);
+		}
+		max17042_update_callback(1);
+		max8903_enable_charge(charger, 1);
+		power_supply_changed(&charger->adapter);
+		printk("MAX8903: AC Charging at %d mA \n", charger->adapter_curr_limit);
+	} else if (current_val >= USB_CURRENT_LIMIT_HIGH) {
+		charger->usb_online = 1;
+		charger->usb_active = 1;
+		charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
+		gpio_set_value(charger->max8903_gpio_chg_iusb, CHG_IUSB_SELECT_500mA);
+		gpio_set_value(charger->max8903_gpio_chg_ilm, CHG_ILM_SELECT_USB);
+		max17042_update_callback(1);
+		max8903_enable_charge(charger, 1);
+		power_supply_changed(&charger->usb);
+		gpio_direction_output(charger->max8903_gpio_chg_usus, 0);
+		printk("MAX8903: USB Charging at %d mA \n", charger->adapter_curr_limit);
+	} else {		/* no VBUS, no DC */
+		max8903_enable_charge(charger, 0);
+		gpio_direction_output(charger->max8903_gpio_chg_usus, 1); // ensure that we will not draw current
+		charger->adapter_online = 0;
+		charger->adapter_active = 0;
+		gpio_set_value(charger->max8903_gpio_chg_ilm, CHG_ILM_SELECT_USB);
+		charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH; /* back to high limit by default */
+		charger->usb_online = 0;
+		charger->usb_active = 0;
+		power_supply_changed(&charger->usb);
+		power_supply_changed(&charger->adapter);
+		max17042_update_callback(0);
+		printk("MAX8903: Charger Unplugged!\n");
+	}
+}
 
-        if ( (dtct_status & TRITON_USB_CHGR_MSK)== TRITON_USB_CHGR_WALL) {
-            charger_type|=DMDP_STS;
-	    DEBUG("%s: D+/D- shorted\n", __FUNCTION__ );
-        }
+static int twl6030_usb_notifier_call(struct notifier_block *nblock,
+		unsigned long event, void *data)
+{
+	struct max8903_charger *di = container_of(nblock, struct max8903_charger, nb);
 
-        switch(charger_type) {
-            case DC_WALL_CHARGER:
-            case BN_WALL_CHARGER:
-		printk("%s: %s Detected!\n", __FUNCTION__, charger_str[charger_type]);
-                gpio_direction_output(MAX8903_GPIO_CHG_USUS, 0);
-                charger->adapter_online = 1;
-                charger->adapter_active = 1;
-                charger->adapter_curr_limit = AC_CURRENT_LIMIT;
-                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_AC);
-                max17042_update_callback(1);
-                max8903_enable_charge(1);
-                power_supply_changed(&charger->adapter);
-                break;
-            case STD_WALL_CHARGER :
-		printk("%s: %s Detected!\n", __FUNCTION__, charger_str[charger_type]);
-                gpio_direction_output(MAX8903_GPIO_CHG_USUS, 0);
-                charger->adapter_online = 1;
-                charger->adapter_active = 1;
-                charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
-                gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
-                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-                max17042_update_callback(1);
-                max8903_enable_charge(1);
-                power_supply_changed(&charger->adapter);
-                break;
-            case INVALID_CHARGER_0 :
-            case INVALID_CHARGER_1 :
-            case INVALID_CHARGER_5 :
-                printk("INVALID Charger %d - do not enable charging\n", charger_type);
-                max8903_enable_charge(0);
-                gpio_direction_output(MAX8903_GPIO_CHG_USUS, 1);
-                break;
-            case BN_USB_CHARGER:
-            case STD_USB_CHARGER :
-            /*everything else, use it as USB charger*/
-            default:
-		printk("%s: %s Detected!\n", __FUNCTION__, charger_str[charger_type]);
-                charger->usb_online = 1;
-                charger->usb_active = 1;
-                charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH;
-                gpio_set_value(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
-                gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-                max17042_update_callback(1);
-                max8903_enable_charge(1);
-                power_supply_changed(&charger->usb);
-                gpio_direction_output(MAX8903_GPIO_CHG_USUS, 0);
-                break;
-        }
-    }
-    else {
-	/* no VBUS, no DC */
-        max8903_enable_charge(0);
-        gpio_direction_output(MAX8903_GPIO_CHG_USUS, 1); // ensure that we will not draw current
-        charger->adapter_online = 0;
-        charger->adapter_active = 0;
-        gpio_set_value(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);
-        charger->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH; /* back to high limit by default */
-        charger->usb_online = 0;
-        charger->usb_active = 0;
-        power_supply_changed(&charger->usb);
-        power_supply_changed(&charger->adapter);
-        max17042_update_callback(0);
-        printk("Charger Unplugged!\n");
-    }
+	if (event == USB_EVENT_ENUMERATED)
+		return NOTIFY_OK;
+
+	di->detected_event = event;
+	switch (event) {
+		case USB_EVENT_VBUS:
+			di->detected_charger = *((unsigned int *) data);
+			di->detected_charger_current = USB_CURRENT_LIMIT_HIGH;
+			DEBUG("MAX8903: USB_EVENT_VBUS: Charger=%d\n", di->detected_charger);
+			break;
+
+		case USB_EVENT_ENUMERATED:
+			di->detected_charger = POWER_SUPPLY_TYPE_USB;
+			di->detected_charger_current = USB_CURRENT_LIMIT_HIGH; //*((unsigned int *) data);
+			DEBUG("MAX8903: USB_EVENT_ENUMERATED: %u mA\n", di->detected_charger_current);
+			break;
+
+		case USB_EVENT_CHARGER:
+			di->detected_charger = *((unsigned int *) data);
+			di->detected_charger_current = AC_CURRENT_LIMIT;
+			DEBUG("MAX8903: USB_EVENT_CHARGER: Charger=%d\n", di->detected_charger);
+			break;
+
+		case USB_EVENT_NONE:
+			DEBUG("MAX8903: USB_EVENT_NONE\n");
+			di->detected_charger = POWER_SUPPLY_TYPE_BATTERY;
+			di->usb_online = 0;
+			di->detected_charger_current = 0;
+			break;
+
+		case USB_EVENT_ID:
+			DEBUG("MAX8903: USB_EVENT_ID\n");
+			break;
+
+		default:
+			return NOTIFY_OK;
+	}
+
+	cancel_delayed_work_sync(&di->usb_work);
+	schedule_delayed_work(&di->usb_work, HZ*2);
+
+	return NOTIFY_OK;
+}
+
+static void max8903_usb_charger_work(struct work_struct *work)
+{
+	struct max8903_charger	*di =
+		container_of(work, struct max8903_charger, usb_work.work);
+
+	max8903_charger_enable(di, di->detected_charger_current);
 }
 
 static irqreturn_t max8903_fault_interrupt(int irq, void *_di)
 {
-    // struct max8903_charger *di=_di;
-    disable_irq(irq);
-    printk("Fault Status Changed!\n");
-    enable_irq(irq);
-    return IRQ_HANDLED;
+	// struct max8903_charger *di=_di;
+	disable_irq(irq);
+	printk("Fault Status Changed!\n");
+	enable_irq(irq);
+	return IRQ_HANDLED;
 }
 
 /*WALL online status*/
 static int adapter_get_property(struct power_supply *psy,
-        enum power_supply_property psp,
-        union power_supply_propval *val)
+		enum power_supply_property psp,
+		union power_supply_propval *val)
 {
+	struct max8903_charger *mc= container_of(psy, struct max8903_charger, adapter);
+	int ret = 0;
 
-    struct max8903_charger *mc= container_of(psy, struct max8903_charger, adapter);
-    int ret = 0;
+	switch (psp) {
+		case POWER_SUPPLY_PROP_ONLINE:
+			val->intval =  mc->adapter_online;
+			break;
+		case POWER_SUPPLY_PROP_CURRENT_AVG:
+			val->intval = mc->adapter_curr_limit;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+	}
 
-    switch (psp) {
-        case POWER_SUPPLY_PROP_ONLINE:
-                val->intval =  mc->adapter_online;
-                break;
-        case POWER_SUPPLY_PROP_CURRENT_AVG:
-                val->intval = mc->adapter_curr_limit;
-                break;
-        default:
-                ret = -EINVAL;
-                break;
-    }
-
-        return ret;
+	return ret;
 }
 /*USB online status*/
 static int usb_get_property(struct power_supply *psy,
-        enum power_supply_property psp,
-        union power_supply_propval *val)
+		enum power_supply_property psp,
+		union power_supply_propval *val)
 {
-        struct max8903_charger *mc= container_of(psy, struct max8903_charger, usb);
-        int ret = 0;
+	struct max8903_charger *mc= container_of(psy, struct max8903_charger, usb);
+	int ret = 0;
 
-        switch (psp) {
-        case POWER_SUPPLY_PROP_ONLINE:
-            val->intval = mc->usb_online;
-            break;
-        case POWER_SUPPLY_PROP_CURRENT_AVG:
-            val->intval = USB_CURRENT_LIMIT_HIGH;
-            break;
-        default:
-            ret = -EINVAL;
-            break;
-        }
+	switch (psp) {
+		case POWER_SUPPLY_PROP_ONLINE:
+			val->intval = mc->usb_online;
+			break;
+		case POWER_SUPPLY_PROP_CURRENT_AVG:
+			val->intval = USB_CURRENT_LIMIT_HIGH;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+	}
 
-        return ret;
+	return ret;
 }
 
 /*only interested in ONLINE property*/
 static enum power_supply_property power_props[] = {
-POWER_SUPPLY_PROP_ONLINE,
-POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
 };
 
 /****************************************
- For manufaturing test purpose only
-*****************************************/
+  For manufacturing test purpose only
+ *****************************************/
 static ssize_t set_charge(struct device *dev,
-        struct device_attribute *attr, const char *buf, size_t count)
+		struct device_attribute *attr, const char *buf, size_t count)
 {
-    char* command[]={"LOW","HIGH"};
-    int index=0;
-    if(!charger)
-        return -EINVAL;
+	struct max8903_charger *charger = dev_get_drvdata(dev);
 
-    index=simple_strtol(buf,0,10);
-    if(index>1){
-        printk("MAX8903-TESTING: INVALID COMMAND only 1 and 0 are acceptable!!\n");
-        return -EINVAL;
-    }
+	static const char* const command[]={"LOW","HIGH"};
+	unsigned long index=0;
+	if(!charger)
+		return -EINVAL;
 
-   printk("MAX8903-TESTING:  == %s!\n",command[index]);
-   /*set the FTM mode*/
-   if(charger->ftm!=1)
-        charger->ftm=1;
-    /*for evt1b and older HW, pulling low on ~CEN means enable charge, EVT2 and higher will reverse this logic 
-      a board HW rev detection will be put in u-boot for differentiation*/
-    max8903_enable_charge(1-index);
+	index=simple_strtoul(buf,0,10);
+	if(index>1){
+		printk("MAX8903-TESTING: INVALID COMMAND only 1 and 0 are acceptable!!\n");
+		return -EINVAL;
+	}
 
-    if(index){
-       printk("MAX8903-TESTING: PULL HIGH PIN(~CEN)!\n");
-    }
-    else{
-            printk("MAX8903-TESTING: PULL LOW PIN(~CEN)!\n");
-        }
-    return count;
+	printk("MAX8903-TESTING:  == %s!\n",command[index]);
+	/*set the FTM mode*/
+	if(charger->ftm!=1)
+		charger->ftm=1;
+	/*for evt1b and older HW, pulling low on ~CEN means enable charge, EVT2 and higher will reverse this logic 
+	  a board HW rev detection will be put in u-boot for differentiation*/
+	max8903_enable_charge(charger, !index);
+
+	if(index){
+		printk("MAX8903-TESTING: PULL HIGH PIN(~CEN)!\n");
+	}
+	else{
+		printk("MAX8903-TESTING: PULL LOW PIN(~CEN)!\n");
+	}
+	return count;
 }
 
 /*no need to read entry, write only for controlling the charging circuit*/
 static DEVICE_ATTR(ctrl_charge, S_IRUGO | S_IWUSR, NULL, set_charge);
 
 static struct attribute *max8903_control_sysfs_entries[] = {
-    &dev_attr_ctrl_charge.attr,
-    NULL,
+	&dev_attr_ctrl_charge.attr,
+	NULL,
 };
 
 static struct attribute_group max8903_attr_group = {
-    .name   = NULL,         /* put in device directory */
-    .attrs  = max8903_control_sysfs_entries,
+	.name   = NULL,         /* put in device directory */
+	.attrs  = max8903_control_sysfs_entries,
 };
+
+static void max8903_usb_charger_atboot(struct max8903_charger *di)
+{
+	di->detected_event = otg_get_link_status(di->otg);
+	printk("MAX8903: Charger detected at boot = %ld\n", di->detected_event);
+		switch (di->detected_event) {
+		case USB_EVENT_VBUS:
+			di->detected_charger = POWER_SUPPLY_TYPE_USB_CDP;
+			di->detected_charger_current = USB_CURRENT_LIMIT_HIGH;
+			DEBUG("MAX8903: USB_EVENT_VBUS: Charger=%d\n", di->detected_charger);
+			break;
+
+		case USB_EVENT_CHARGER:
+			di->detected_charger = POWER_SUPPLY_TYPE_USB_DCP;
+			di->detected_charger_current = AC_CURRENT_LIMIT;
+			DEBUG("MAX8903: USB_EVENT_CHARGER: Charger=%d\n", di->detected_charger);
+			break;
+
+		case USB_EVENT_NONE:
+			DEBUG("MAX8903: USB_EVENT_NONE\n");
+			di->detected_charger = POWER_SUPPLY_TYPE_BATTERY;
+			di->usb_online = 0;
+			di->detected_charger_current = 0;
+			break;
+
+		case USB_EVENT_ID:
+			DEBUG("MAX8903: USB_EVENT_ID\n");
+			break;
+
+		default:
+			return;
+	}
+	schedule_delayed_work(&di->usb_work, HZ*5);
+}
+
 
 /*Charger Module Initialization*/
 static int max8903_charger_probe(struct platform_device *pdev)
 {
 
-    struct max8903_charger *mc;
-    int ret,flt_irq;
+	struct max8903_charger *mc;
+	int ret;
+	struct resource *r;
 
-    /*allocate mem*/
-    mc = kzalloc(sizeof(*mc), GFP_KERNEL);
-    if (!mc)
-        return -ENOMEM;
-    charger = mc;
-    platform_set_drvdata(pdev, mc);
+	/*allocate mem*/
+	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
+	if (!mc)
+		return -ENOMEM;
 
-    printk("MAXIM 8903 Charger Initializing...\n");
-    //INIT_DELAYED_WORK(&mc->max8903_charger_detect_work, max8903_charger_detect);
-    /* Create power supplies for WALL/USB which are the only 2 ext supplies*/
-    mc->adapter.name        = "ac";
-    mc->adapter.type        = POWER_SUPPLY_TYPE_MAINS;
-    mc->adapter.properties      = power_props;
-    mc->adapter.num_properties  = ARRAY_SIZE(power_props);
-    mc->adapter.get_property    = &adapter_get_property;
+	platform_set_drvdata(pdev, mc);
 
-    mc->usb.name            = "usb";
-    mc->usb.type            = POWER_SUPPLY_TYPE_USB;
-    mc->usb.properties      = power_props;
-    mc->usb.num_properties      = ARRAY_SIZE(power_props);
-    mc->usb.get_property        = usb_get_property;
+	printk("MAX8903: Charger Initializing...\n");
+	//INIT_DELAYED_WORK(&mc->max8903_charger_detect_work, max8903_charger_detect);
+	/* Create power supplies for WALL/USB which are the only 2 ext supplies*/
+	mc->adapter.name            = "ac";
+	mc->adapter.type            = POWER_SUPPLY_TYPE_MAINS;
+	mc->adapter.properties      = power_props;
+	mc->adapter.num_properties  = ARRAY_SIZE(power_props);
+	mc->adapter.get_property    = &adapter_get_property;
 
-    mc->adapter_online = 0;
-    mc->adapter_active = 0;
-    mc->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH; /* default limit is high limit */
-    mc->usb_online = 0;
-    mc->usb_active = 0;
+	mc->usb.name            = "usb";
+	mc->usb.type            = POWER_SUPPLY_TYPE_USB;
+	mc->usb.properties      = power_props;
+	mc->usb.num_properties  = ARRAY_SIZE(power_props);
+	mc->usb.get_property    = usb_get_property;
 
-    ret = power_supply_register(&pdev->dev, &mc->adapter);
-    if (ret) {
-        printk("MAXIM 8903 failed to register WALL CHARGER\n");
-        goto exit0;
-    }
+	mc->adapter_online = 0;
+	mc->adapter_active = 0;
+	mc->adapter_curr_limit = USB_CURRENT_LIMIT_HIGH; /* default limit is high limit */
+	mc->usb_online = 0;
+	mc->usb_active = 0;
 
-    ret = power_supply_register(&pdev->dev, &mc->usb);
-    if (ret) {
-        printk("MAXIM 8903 failed to register USB CHARGER\n");
-        goto exit1;
-    }
+	ret = power_supply_register(&pdev->dev, &mc->adapter);
+	if (ret) {
+		printk("MAX8903: Failed to register WALL CHARGER\n");
+		goto exit0;
+	}
 
-    /****************************/
-    /*Control pins configuration*/
-    /****************************/
-    /*~DOK Status*/
-    if (gpio_request(MAX8903_DOK_GPIO_FOR_IRQ, "max8903_chg_dok") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_dok\n");
-        goto exit2;
-    }
-    /*~UOK Status*/
-    if (gpio_request(MAX8903_UOK_GPIO_FOR_IRQ, "max8903_chg_uok") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_uok\n");
-        goto exit3;
-    }
-    gpio_direction_input(MAX8903_UOK_GPIO_FOR_IRQ);
-    /*~CHG Status*/
-    if (gpio_request(MAX8903_GPIO_CHG_STATUS, "max8903_chg_chg") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_chg\n");
-        goto exit4;
-    }
-    gpio_direction_input(MAX8903_GPIO_CHG_STATUS);
+	ret = power_supply_register(&pdev->dev, &mc->usb);
+	if (ret) {
+		printk("MAX8903: Failed to register USB CHARGER\n");
+		goto exit1;
+	}
 
-    /*IUSB control*/
-    if (gpio_request(MAX8903_GPIO_CHG_IUSB, "max8903_chg_iusb") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_iusb\n");
-        goto exit5;
-    }
-    gpio_direction_output(MAX8903_GPIO_CHG_IUSB, CHG_IUSB_SELECT_500mA);
+	/*****************/
+	/* Get resources */
+	/*****************/
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_EN);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_EN);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_en = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_FLT);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_FLT);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_flt = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_IUSB);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_IUSB);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_iusb = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_USUS);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_USUS);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_usus = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_ILM);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_ILM);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_ilm = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_UOK);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_UOK);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_uok = r->start;
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, MAX8903_TOKEN_GPIO_CHG_DOK);
+	if (!r) {
+		dev_err(&pdev->dev, "failed to get resource: %s\n", MAX8903_TOKEN_GPIO_CHG_DOK);
+		goto exit1;
+	}
+	mc->max8903_gpio_chg_dok = r->start;
 
-    /*USUS control*/
-    if (gpio_request(MAX8903_GPIO_CHG_USUS, "max8903_chg_usus") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_usus\n");
-        goto exit6;
-    }
+	/******************************/
+	/* Control pins configuration */
+	/******************************/
 
-    gpio_direction_output(MAX8903_GPIO_CHG_USUS, 1); // leave USUS disabled until we connect
+	/*~DOK Status*/
+	if (gpio_request(mc->max8903_gpio_chg_dok, MAX8903_TOKEN_GPIO_CHG_DOK) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_dok\n");
+		goto exit2;
+	}
+	gpio_direction_input(mc->max8903_gpio_chg_dok);
+	/*~UOK Status*/
+	if (gpio_request(mc->max8903_gpio_chg_uok, MAX8903_TOKEN_GPIO_CHG_UOK) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_uok\n");
+		goto exit3;
+	}
+	gpio_direction_input(mc->max8903_gpio_chg_uok);
+	/*IUSB control*/
+	if (gpio_request(mc->max8903_gpio_chg_iusb,  MAX8903_TOKEN_GPIO_CHG_IUSB) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_iusb\n");
+		goto exit5;
+	}
+	gpio_direction_output(mc->max8903_gpio_chg_iusb, CHG_IUSB_SELECT_500mA);
 
-    /*~CEN control */
-    if (gpio_request(MAX8903_GPIO_CHG_EN, "max8903_chg_en") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_en\n");
-        goto exit7;
-    }
-    gpio_direction_output(MAX8903_GPIO_CHG_EN, DISABLED);
+	/*USUS control*/
+	if (gpio_request(mc->max8903_gpio_chg_usus, MAX8903_TOKEN_GPIO_CHG_USUS) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_usus\n");
+		goto exit6;
+	}
+	gpio_direction_output(mc->max8903_gpio_chg_usus, DISABLED); // leave USUS disabled until we connect
 
-    if (gpio_request(MAX8903_GPIO_CHG_ILM, "max8903_chg_ilm") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_ilm\n");
-        goto exit8;
-    }
-    gpio_direction_output(MAX8903_GPIO_CHG_ILM, CHG_ILM_SELECT_USB);    /* set to USB  current limit by default */
+	/*~CEN control */
+	if (gpio_request(mc->max8903_gpio_chg_en, MAX8903_TOKEN_GPIO_CHG_EN) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_en\n");
+		goto exit7;
+	}
+	gpio_direction_output(mc->max8903_gpio_chg_en, DISABLED);
 
-    if (gpio_request(MAX8903_GPIO_CHG_FLT, "max8903_chg_flt") < 0) {
-        printk(KERN_ERR "Can't get GPIO for max8903 chg_flt\n");
-        goto exit9;
-    }
-    gpio_direction_input(MAX8903_GPIO_CHG_FLT);
+	if (gpio_request(mc->max8903_gpio_chg_ilm, MAX8903_TOKEN_GPIO_CHG_ILM) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_ilm\n");
+		goto exit8;
+	}
+	gpio_direction_output(mc->max8903_gpio_chg_ilm, CHG_ILM_SELECT_USB);    /* set to USB  current limit by default */
 
-    /*~FLT status*/
-    flt_irq= gpio_to_irq(MAX8903_GPIO_CHG_FLT) ;
-    ret  = request_irq( flt_irq,
-                        max8903_fault_interrupt,
-                        IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_DISABLED,
-                        "max8903-fault-irq",
-                        mc);
+	if (gpio_request(mc->max8903_gpio_chg_flt, MAX8903_TOKEN_GPIO_CHG_FLT) < 0) {
+		printk(KERN_ERR "Can't get GPIO for max8903 chg_flt\n");
+		goto exit9;
+	}
+	gpio_direction_input(mc->max8903_gpio_chg_flt);
 
-    printk("MAXIM8903: Request CHARGER FLT IRQ successfully!\n");
-    if (ret < 0) {
-        printk(KERN_ERR "MAXIM 8903 Can't Request IRQ for max8903 flt_irq\n");
-        goto exita;
-    }
+	/*~FLT status*/
+	mc->flt_irq= gpio_to_irq(mc->max8903_gpio_chg_flt) ;
+	ret  = request_irq( mc->flt_irq,
+			max8903_fault_interrupt,
+			IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_DISABLED,
+			"max8903-fault-irq",
+			mc);
 
-    /*
-    create sysfs for manufacture testing coverage on charging
-    the operator should be able to write 1 to turn on the charging and 0 to
-    turn off the charging to verify the charging circuit is functioning
-    */
-    ret = sysfs_create_group(&pdev->dev.kobj, &max8903_attr_group);
+	printk("MAX8903: Request CHARGER FLT IRQ successfully!\n");
+	if (ret < 0) {
+		printk(KERN_ERR "MAX8903: Can't Request IRQ for max8903 flt_irq\n");
+		goto exita;
+	}
 
-    if (ret){
-        printk(KERN_ERR "MAXIM 8903 Can't Create Sysfs Entry for FTM\n");
-        goto exitd;
-    }
+	/*
+	   create sysfs for manufacture testing coverage on charging
+	   the operator should be able to write 1 to turn on the charging and 0 to
+	   turn off the charging to verify the charging circuit is functioning
+	   */
+	ret = sysfs_create_group(&pdev->dev.kobj, &max8903_attr_group);
 
-    complete_all(&charger_probed);
+	if (ret){
+		printk(KERN_ERR "MAX8903: Can't Create Sysfs Entry for FTM\n");
+		goto exitd;
+	}
 
-    return 0;
+	// Register charger work and notification callback.
+	INIT_DELAYED_WORK_DEFERRABLE(&mc->usb_work, max8903_usb_charger_work);
+	mc->nb.notifier_call = twl6030_usb_notifier_call;
+	mc->otg = otg_get_transceiver();
+	if (!mc->otg) {
+		dev_err(&pdev->dev, "otg_get_transceiver() failed\n");
+		goto exitn;
+	}
+	ret = otg_register_notifier(mc->otg, &mc->nb);
+	if (ret) {
+		dev_err(&pdev->dev, "otg register notifier failed %d\n", ret);
+		goto exitn;
+	}
+
+	max8903_usb_charger_atboot(mc);
+
+	return 0;
+
+exitn:
+	cancel_delayed_work_sync(&mc->usb_work);
+	sysfs_remove_group(&pdev->dev.kobj, &max8903_attr_group);
 
 exitd:
-    free_irq(flt_irq,mc);
+	free_irq(mc->flt_irq,mc);
 exita:
-    gpio_free(MAX8903_GPIO_CHG_FLT);
+	gpio_free(mc->max8903_gpio_chg_flt);
 exit9:
-    gpio_free(MAX8903_GPIO_CHG_ILM);
+	gpio_free(mc->max8903_gpio_chg_ilm);
 exit8:
-    gpio_free(MAX8903_GPIO_CHG_EN);
+	gpio_free(mc->max8903_gpio_chg_en);
 exit7:
-    gpio_free(MAX8903_GPIO_CHG_USUS);
+	gpio_free(mc->max8903_gpio_chg_usus);
 exit6:
-    gpio_free(MAX8903_GPIO_CHG_IUSB);
+	gpio_free(mc->max8903_gpio_chg_iusb);
 exit5:
-    gpio_free(MAX8903_GPIO_CHG_STATUS);
-exit4:
-    gpio_free(MAX8903_UOK_GPIO_FOR_IRQ);
+	gpio_free(mc->max8903_gpio_chg_uok);
 exit3:
-    gpio_free(MAX8903_DOK_GPIO_FOR_IRQ);
+	gpio_free(mc->max8903_gpio_chg_dok);
 exit2:
-    power_supply_unregister(&mc->usb);
+	power_supply_unregister(&mc->usb);
 exit1:
-    power_supply_unregister(&mc->adapter);
+	power_supply_unregister(&mc->adapter);
 exit0:
-    kfree(mc);
-    return ret;
+	kfree(mc);
+	return ret;
 }
 
 /*Charger Module DeInitialization*/
 static int __exit max8903_charger_remove(struct platform_device *pdev)
 {
-    struct max8903_charger *mc = platform_get_drvdata(pdev);
-    /*unregister,clean up*/
-    if(mc)
-    {
-        power_supply_unregister(&mc->usb);
-        power_supply_unregister(&mc->adapter);
-    }
-    gpio_free(MAX8903_UOK_GPIO_FOR_IRQ);
-    gpio_free(MAX8903_DOK_GPIO_FOR_IRQ);
-    gpio_free(MAX8903_GPIO_CHG_IUSB);
-    gpio_free(MAX8903_GPIO_CHG_USUS);
-    gpio_free(MAX8903_GPIO_CHG_FLT);
-    gpio_free(MAX8903_GPIO_CHG_EN);
-    gpio_free(MAX8903_GPIO_CHG_STATUS);
-    if(mc)
-        kfree(mc);
-    return 0;
+	struct max8903_charger *mc = platform_get_drvdata(pdev);
+	/*unregister,clean up*/
+	if(mc)
+	{
+		power_supply_unregister(&mc->usb);
+		power_supply_unregister(&mc->adapter);
+	}
+
+	free_irq(mc->flt_irq,mc);
+	sysfs_remove_group(&pdev->dev.kobj, &max8903_attr_group);
+	otg_unregister_notifier(mc->otg, &mc->nb);
+	cancel_delayed_work_sync(&mc->usb_work);
+
+	gpio_free(mc->max8903_gpio_chg_uok);
+	gpio_free(mc->max8903_gpio_chg_dok);
+	gpio_free(mc->max8903_gpio_chg_iusb);
+	gpio_free(mc->max8903_gpio_chg_usus);
+	gpio_free(mc->max8903_gpio_chg_flt);
+	gpio_free(mc->max8903_gpio_chg_en);
+	gpio_free(mc->max8903_gpio_chg_ilm);
+	if(mc)
+		kfree(mc);
+	return 0;
 }
 
 static struct platform_driver max8903_charger_driver = {
-    .driver = {
-        .name = "max8903_charger",
-    },
-    .probe = max8903_charger_probe,
-    .remove =  __exit_p(max8903_charger_remove),
+	.driver = {
+		.name = "max8903_charger",
+	},
+	.probe = max8903_charger_probe,
+	.remove =  __exit_p(max8903_charger_remove),
 };
 
 static int __init max8903_charger_init(void)
 {
-    printk("MAXIM 8903 Charger registering!\n");
-    return platform_driver_register(&max8903_charger_driver);
+	printk("MAX8903: Charger registering!\n");
+	return platform_driver_register(&max8903_charger_driver);
 }
 
 static void __exit max8903_charger_exit(void)
 {
-    platform_driver_unregister(&max8903_charger_driver);
+	platform_driver_unregister(&max8903_charger_driver);
 }
 
 module_init(max8903_charger_init);

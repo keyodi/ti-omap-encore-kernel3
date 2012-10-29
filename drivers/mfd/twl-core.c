@@ -1373,6 +1373,8 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto fail;
 	}
 
+// kibum.lee@lge.com ICS error fix -> omap_i2c omap_i2c.1: controller timed out
+#if 0
 	/* Disable TWL4030/TWL5030 I2C Pull-up on I2C1 and I2C4(SR) interface.
 	 * Program I2C_SCL_CTRL_PU(bit 0)=0, I2C_SDA_CTRL_PU (bit 2)=0,
 	 * SR_I2C_SCL_CTRL_PU(bit 4)=0 and SR_I2C_SDA_CTRL_PU(bit 6)=0.
@@ -1384,6 +1386,8 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		I2C_SDA_CTRL_PU | I2C_SCL_CTRL_PU);
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
 	}
+#endif
+// kibum.lee@lge.com ICS error fix -> omap_i2c omap_i2c.1: controller timed out
 
 	status = add_children(pdata, id->driver_data);
 fail:

@@ -41,10 +41,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#if defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
 #include <linux/opp.h>
-#endif
 
 #if defined(SUPPORT_DRI_DRM_PLUGIN)
 #include <drm/drmP.h>
@@ -63,6 +60,11 @@
 #else
 #define SGX_PARENT_CLOCK "core_ck"
 #endif
+
+extern bool sgx_idle_logging;
+extern uint sgx_idle_mode;
+extern uint sgx_idle_timeout;
+extern uint sgx_apm_latency;
 
 #if defined(LDM_PLATFORM) && !defined(PVR_DRI_DRM_NOT_PCI)
 extern struct platform_device *gpsPVRLDMDev;
@@ -129,12 +131,8 @@ IMG_VOID SysGetSGXTimingInformation(SGX_TIMING_INFORMATION *psTimingInfo)
 #if !defined(NO_HARDWARE)
 	PVR_ASSERT(atomic_read(&gpsSysSpecificData->sSGXClocksEnabled) != 0);
 #endif
-#if defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
 	psTimingInfo->ui32CoreClockSpeed =
 		gpsSysSpecificData->pui32SGXFreqList[gpsSysSpecificData->ui32SGXFreqListIndex];
-#else 
-	psTimingInfo->ui32CoreClockSpeed = SYS_SGX_CLOCK_SPEED;
-#endif
 	psTimingInfo->ui32HWRecoveryFreq = SYS_SGX_HWRECOVERY_TIMEOUT_FREQ;
 	psTimingInfo->ui32uKernelFreq = SYS_SGX_PDS_TIMER_FREQ;
 #if defined(SUPPORT_ACTIVE_POWER_MANAGEMENT)
@@ -142,8 +140,44 @@ IMG_VOID SysGetSGXTimingInformation(SGX_TIMING_INFORMATION *psTimingInfo)
 #else
 	psTimingInfo->bEnableActivePM = IMG_FALSE;
 #endif 
-	psTimingInfo->ui32ActivePowManLatencyms = SYS_SGX_ACTIVE_POWER_LATENCY_MS;
+	psTimingInfo->ui32ActivePowManLatencyms = sgx_apm_latency;
 }
+
+void RequestSGXFreq(SYS_DATA *psSysData, IMG_BOOL bMaxFreq)
+{
+	SYS_SPECIFIC_DATA *psSysSpecData = (SYS_SPECIFIC_DATA *) psSysData->pvSysSpecificData;
+	struct gpu_platform_data *pdata;
+	IMG_UINT32 freq_index;
+	int res;
+
+	pdata = (struct gpu_platform_data *)gpsPVRLDMDev->dev.platform_data;
+	freq_index = bMaxFreq ? psSysSpecData->ui32SGXFreqListSize - 2 : 0;
+
+	if (psSysSpecData->ui32SGXFreqListIndex != freq_index)
+	{
+		PVR_ASSERT(pdata->device_scale != IMG_NULL);
+		res = pdata->device_scale(&gpsPVRLDMDev->dev,
+					  &gpsPVRLDMDev->dev,
+					  psSysSpecData->pui32SGXFreqList[freq_index]);
+
+		if (res == 0)
+			psSysSpecData->ui32SGXFreqListIndex = freq_index;
+		else if (res == -EBUSY)
+		{
+			PVR_DPF((PVR_DBG_WARNING, "EnableSGXClocks: Unable to scale SGX frequency (EBUSY)"));
+			psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
+		}
+		else if (res < 0)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "EnableSGXClocks: Unable to scale SGX frequency (%d)", res));
+			psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
+		}
+	}
+
+}
+
+void sgx_idle_log_on(void);
+void sgx_idle_log_off(void);
 
 PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData)
 {
@@ -159,50 +193,20 @@ PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData)
 	PVR_DPF((PVR_DBG_MESSAGE, "EnableSGXClocks: Enabling SGX Clocks"));
 
 #if defined(LDM_PLATFORM) && !defined(PVR_DRI_DRM_NOT_PCI)
-#if defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
 	{
-		struct gpu_platform_data *pdata;
-		IMG_UINT32 max_freq_index;
 		int res;
 
-		pdata = (struct gpu_platform_data *)gpsPVRLDMDev->dev.platform_data;
-		max_freq_index = psSysSpecData->ui32SGXFreqListSize - 2;
+		if (sgx_idle_mode == 0)
+			RequestSGXFreq(psSysData, IMG_TRUE);
 
-		
-		if (psSysSpecData->ui32SGXFreqListIndex != max_freq_index)
-		{
-			PVR_ASSERT(pdata->device_scale != IMG_NULL);
-			res = pdata->device_scale(&gpsPVRLDMDev->dev,
-									  &gpsPVRLDMDev->dev,
-									  psSysSpecData->pui32SGXFreqList[max_freq_index]);
-			if (res == 0)
-			{
-				psSysSpecData->ui32SGXFreqListIndex = max_freq_index;
-			}
-			else if (res == -EBUSY)
-			{
-				PVR_DPF((PVR_DBG_WARNING, "EnableSGXClocks: Unable to scale SGX frequency (EBUSY)"));
-				psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
-			}
-			else if (res < 0)
-			{
-				PVR_DPF((PVR_DBG_ERROR, "EnableSGXClocks: Unable to scale SGX frequency (%d)", res));
-				psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
-			}
-		}
-	}
-#endif 
-	{
-		
-		int res = pm_runtime_get_sync(&gpsPVRLDMDev->dev);
+		res = pm_runtime_get_sync(&gpsPVRLDMDev->dev);
 		if (res < 0)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "EnableSGXClocks: pm_runtime_get_sync failed (%d)", -res));
 			return PVRSRV_ERROR_UNABLE_TO_ENABLE_CLOCK;
 		}
 	}
-#endif 
-
+#endif
 	SysEnableSGXInterrupts(psSysData);
 
 	
@@ -211,6 +215,9 @@ PVRSRV_ERROR EnableSGXClocks(SYS_DATA *psSysData)
 #else	
 	PVR_UNREFERENCED_PARAMETER(psSysData);
 #endif	
+
+	sgx_idle_log_on();
+
 	return PVRSRV_OK;
 }
 
@@ -226,50 +233,26 @@ IMG_VOID DisableSGXClocks(SYS_DATA *psSysData)
 		return;
 	}
 
+	sgx_idle_log_off();
+
 	PVR_DPF((PVR_DBG_MESSAGE, "DisableSGXClocks: Disabling SGX Clocks"));
 
 	SysDisableSGXInterrupts(psSysData);
 
 #if defined(LDM_PLATFORM) && !defined(PVR_DRI_DRM_NOT_PCI)
 	{
-		int res = pm_runtime_put_sync(&gpsPVRLDMDev->dev);
+		int res;
+
+		res = pm_runtime_put_sync(&gpsPVRLDMDev->dev);
 		if (res < 0)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "DisableSGXClocks: pm_runtime_put_sync failed (%d)", -res));
 		}
-	}
-#if defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
-	{
-		struct gpu_platform_data *pdata;
-		int res;
 
-		pdata = (struct gpu_platform_data *)gpsPVRLDMDev->dev.platform_data;
-
-		
-		if (psSysSpecData->ui32SGXFreqListIndex != 0)
-		{
-			PVR_ASSERT(pdata->device_scale != IMG_NULL);
-			res = pdata->device_scale(&gpsPVRLDMDev->dev,
-									  &gpsPVRLDMDev->dev,
-									  psSysSpecData->pui32SGXFreqList[0]);
-			if (res == 0)
-			{
-				psSysSpecData->ui32SGXFreqListIndex = 0;
-			}
-			else if (res == -EBUSY)
-			{
-				PVR_DPF((PVR_DBG_WARNING, "DisableSGXClocks: Unable to scale SGX frequency (EBUSY)"));
-				psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
-			}
-			else if (res < 0)
-			{
-				PVR_DPF((PVR_DBG_ERROR, "DisableSGXClocks: Unable to scale SGX frequency (%d)", res));
-				psSysSpecData->ui32SGXFreqListIndex = psSysSpecData->ui32SGXFreqListSize - 1;
-			}
-		}
+		if (sgx_idle_mode == 0)
+			RequestSGXFreq(psSysData, IMG_FALSE);
 	}
-#endif 
-#endif 
+#endif
 
 	
 	atomic_set(&psSysSpecData->sSGXClocksEnabled, 0);
@@ -281,7 +264,7 @@ IMG_VOID DisableSGXClocks(SYS_DATA *psSysData)
 
 #if (defined(DEBUG) || defined(TIMING)) && !defined(PVR_NO_OMAP_TIMER)
 #if defined(PVR_OMAP_USE_DM_TIMER_API)
-#define	GPTIMER_TO_USE 6
+#define	GPTIMER_TO_USE 11
 static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 {
 	PVR_ASSERT(psSysSpecData->psGPTimer == NULL);
@@ -305,7 +288,7 @@ static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 	omap_dm_timer_start(psSysSpecData->psGPTimer);
 
 	
-	psSysSpecData->sTimerRegPhysBase.uiAddr = SYS_OMAP3_GPTIMER_REGS_SYS_PHYS_BASE;
+	psSysSpecData->sTimerRegPhysBase.uiAddr = SYS_OMAP4430_GP11TIMER_REGS_SYS_PHYS_BASE;
 
 	return PVRSRV_OK;
 }
@@ -344,45 +327,25 @@ static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 
 	PVR_ASSERT(psSysSpecData->sTimerRegPhysBase.uiAddr == 0);
 
-	psCLK = clk_get(NULL, "sgx_fck");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_enable(psCLK);
-
-
-	psCLK = clk_get(NULL, "sgx_ick");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_enable(psCLK);
-
-
 #if defined(PVR_OMAP4_TIMING_PRCM)
 	
-	psCLK = clk_get(NULL, "gpt6_fck");
+	psCLK = clk_get(NULL, "gpt11_fck");
 	if (IS_ERR(psCLK))
 	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get GPTIMER functional clock"));
+		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get GPTIMER11 functional clock"));
 		goto ExitError;
 	}
 	psSysSpecData->psGPT11_FCK = psCLK;
 
-	psCLK = clk_get(NULL, "gpt6_ick");
+	psCLK = clk_get(NULL, "gpt11_ick");
 	if (IS_ERR(psCLK))
 	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get GPTIMER interface clock"));
+		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get GPTIMER11 interface clock"));
 		goto ExitError;
 	}
 	psSysSpecData->psGPT11_ICK = psCLK;
 
-	sys_ck = clk_get(NULL, "sys_ck");
+	sys_ck = clk_get(NULL, "sys_clkin_ck");
 	if (IS_ERR(sys_ck))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get System clock"));
@@ -391,35 +354,35 @@ static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 
 	if(clk_get_parent(psSysSpecData->psGPT11_FCK) != sys_ck)
 	{
-		PVR_TRACE(("Setting GPTIMER parent to System Clock"));
+		PVR_TRACE(("Setting GPTIMER11 parent to System Clock"));
 		res = clk_set_parent(psSysSpecData->psGPT11_FCK, sys_ck);
 		if (res < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't set GPTIMER parent clock (%d)", res));
+			PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't set GPTIMER11 parent clock (%d)", res));
 		goto ExitError;
 		}
 	}
 
 	rate = clk_get_rate(psSysSpecData->psGPT11_FCK);
-	PVR_TRACE(("GPTIMER clock is %dMHz", HZ_TO_MHZ(rate)));
+	PVR_TRACE(("GPTIMER11 clock is %dMHz", HZ_TO_MHZ(rate)));
 
 	res = clk_enable(psSysSpecData->psGPT11_FCK);
 	if (res < 0)
 	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't enable GPTIMER functional clock (%d)", res));
+		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't enable GPTIMER11 functional clock (%d)", res));
 		goto ExitError;
 	}
 
 	res = clk_enable(psSysSpecData->psGPT11_ICK);
 	if (res < 0)
 	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't enable GPTIMER interface clock (%d)", res));
+		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't enable GPTIMER11 interface clock (%d)", res));
 		goto ExitDisableGPT11FCK;
 	}
 #endif	
 
 	
-	sTimerRegPhysBase.uiAddr = SYS_OMAP3_GPTIMER_TSICR_SYS_PHYS_BASE;
+	sTimerRegPhysBase.uiAddr = SYS_OMAP4430_GP11TIMER_TSICR_SYS_PHYS_BASE;
 	pui32TimerEnable = OSMapPhysToLin(sTimerRegPhysBase,
                   4,
                   PVRSRV_HAP_KERNEL_ONLY|PVRSRV_HAP_UNCACHED,
@@ -433,7 +396,7 @@ static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 
 	if(!(*pui32TimerEnable & 4))
 	{
-		PVR_TRACE(("Setting GPTIMER mode to posted (currently is non-posted)"));
+		PVR_TRACE(("Setting GPTIMER11 mode to posted (currently is non-posted)"));
 
 		
 		*pui32TimerEnable |= 4;
@@ -445,7 +408,7 @@ static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 		    hTimerEnable);
 
 	
-	sTimerRegPhysBase.uiAddr = SYS_OMAP3_GPTIMER_ENABLE_SYS_PHYS_BASE;
+	sTimerRegPhysBase.uiAddr = SYS_OMAP4430_GP11TIMER_ENABLE_SYS_PHYS_BASE;
 	pui32TimerEnable = OSMapPhysToLin(sTimerRegPhysBase,
                   4,
                   PVRSRV_HAP_KERNEL_ONLY|PVRSRV_HAP_UNCACHED,
@@ -525,27 +488,7 @@ static void ReleaseGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 #else	
 static PVRSRV_ERROR AcquireGPTimer(SYS_SPECIFIC_DATA *psSysSpecData)
 {
-	struct clk *psCLK;
 	PVR_UNREFERENCED_PARAMETER(psSysSpecData);
-
-	psCLK = clk_get(NULL, "sgx_fck");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_enable(psCLK);
-
-
-	psCLK = clk_get(NULL, "sgx_ick");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_enable(psCLK);
 
 	return PVRSRV_OK;
 }
@@ -575,32 +518,12 @@ PVRSRV_ERROR EnableSystemClocks(SYS_DATA *psSysData)
 
 IMG_VOID DisableSystemClocks(SYS_DATA *psSysData)
 {
-	struct clk *psCLK;
 	SYS_SPECIFIC_DATA *psSysSpecData = (SYS_SPECIFIC_DATA *) psSysData->pvSysSpecificData;
 
 	PVR_TRACE(("DisableSystemClocks: Disabling System Clocks"));
 
 	
 	DisableSGXClocks(psSysData);
-
-	psCLK = clk_get(NULL, "sgx_fck");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_disable(psCLK);
-
-
-	psCLK = clk_get(NULL, "sgx_ick");
-	if (IS_ERR(psCLK))
-	{
-		PVR_DPF((PVR_DBG_ERROR, "EnableSystemClocks: Couldn't get SGX Interface Clock"));
-		return;
-	}
-
-	clk_disable(psCLK);
 
 	ReleaseGPTimer(psSysSpecData);
 }
@@ -623,15 +546,16 @@ PVRSRV_ERROR SysPMRuntimeUnregister(void)
 
 PVRSRV_ERROR SysDvfsInitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 {
-#if !defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
-	PVR_UNREFERENCED_PARAMETER(psSysSpecificData);
-#else 
-	IMG_UINT32 i, *freq_list;
 	IMG_INT32 opp_count;
-	unsigned long freq;
+	IMG_UINT32 i, *freq_list;
 	struct opp *opp;
+	unsigned long freq;
 
-	
+	/**
+	 * We query and store the list of SGX frequencies just this once under the
+	 * assumption that they are unchanging, e.g. no disabling of high frequency
+	 * option for thermal management. This is currently valid for 4430 and 4460.
+	 */
 	rcu_read_lock();
 	opp_count = opp_get_opp_count(&gpsPVRLDMDev->dev);
 	if (opp_count < 1)
@@ -641,7 +565,11 @@ PVRSRV_ERROR SysDvfsInitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 		return PVRSRV_ERROR_NOT_SUPPORTED;
 	}
 
-	
+	/**
+	 * Allocate the frequency list with a slot for each available frequency plus
+	 * one additional slot to hold a designated frequency value to assume when in
+	 * an unknown frequency state.
+	 */
 	freq_list = kmalloc((opp_count + 1) * sizeof(IMG_UINT32), GFP_ATOMIC);
 	if (!freq_list)
 	{
@@ -650,7 +578,12 @@ PVRSRV_ERROR SysDvfsInitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
 
-	
+	/**
+	 * Fill in frequency list from lowest to highest then finally the "unknown"
+	 * frequency value. We use the highest available frequency as our assumed value
+	 * when in an unknown state, because it is safer for APM and hardware recovery
+	 * timers to be longer than intended rather than shorter.
+	 */
 	freq = 0;
 	for (i = 0; i < opp_count; i++)
 	{
@@ -670,39 +603,40 @@ PVRSRV_ERROR SysDvfsInitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 
 	psSysSpecificData->ui32SGXFreqListSize = opp_count + 1;
 	psSysSpecificData->pui32SGXFreqList = freq_list;
-
-	
+	/* Start in unknown state - no frequency request to DVFS yet made */
 	psSysSpecificData->ui32SGXFreqListIndex = opp_count;
-#endif 
 
 	return PVRSRV_OK;
 }
 
 PVRSRV_ERROR SysDvfsDeinitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 {
-#if !defined(SYS_OMAP4_HAS_DVFS_FRAMEWORK)
-	PVR_UNREFERENCED_PARAMETER(psSysSpecificData);
-#else 
-	
+	/**
+	 * We assume this function is only called if SysDvfsInitialize() was
+	 * completed successfully before.
+	 *
+	 * The DVFS interface does not allow us to actually unregister as a
+	 * user of SGX, so we do the next best thing which is to lower our
+	 * required frequency to the minimum if not already set. DVFS may
+	 * report busy if early in initialization, but all other errors are
+	 * considered serious.
+	 */
 	if (psSysSpecificData->ui32SGXFreqListIndex != 0)
 	{
-		struct gpu_platform_data *pdata;
 		IMG_INT32 res;
+		struct gpu_platform_data *pdata;
 
 		pdata = (struct gpu_platform_data *)gpsPVRLDMDev->dev.platform_data;
 
 		PVR_ASSERT(pdata->device_scale != IMG_NULL);
 		res = pdata->device_scale(&gpsPVRLDMDev->dev,
-								  &gpsPVRLDMDev->dev,
-								  psSysSpecificData->pui32SGXFreqList[0]);
+				&gpsPVRLDMDev->dev,
+				psSysSpecificData->pui32SGXFreqList[0]);
+
 		if (res == -EBUSY)
-		{
 			PVR_DPF((PVR_DBG_WARNING, "SysDvfsDeinitialize: Unable to scale SGX frequency (EBUSY)"));
-		}
 		else if (res < 0)
-		{
 			PVR_DPF((PVR_DBG_ERROR, "SysDvfsDeinitialize: Unable to scale SGX frequency (%d)", res));
-		}
 
 		psSysSpecificData->ui32SGXFreqListIndex = 0;
 	}
@@ -710,7 +644,6 @@ PVRSRV_ERROR SysDvfsDeinitialize(SYS_SPECIFIC_DATA *psSysSpecificData)
 	kfree(psSysSpecificData->pui32SGXFreqList);
 	psSysSpecificData->pui32SGXFreqList = 0;
 	psSysSpecificData->ui32SGXFreqListSize = 0;
-#endif 
 
 	return PVRSRV_OK;
 }

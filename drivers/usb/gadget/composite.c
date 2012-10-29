@@ -859,6 +859,12 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	u16				w_length = le16_to_cpu(ctrl->wLength);
 	struct usb_function		*f = NULL;
 	u8				endp;
+	unsigned long			flags;
+
+	spin_lock_irqsave(&cdev->lock, flags);
+	cdev->connected = 1;
+	schedule_work(&cdev->switch_work);
+	spin_unlock_irqrestore(&cdev->lock, flags);
 
 	/* partial re-init of the response message; the function or the
 	 * gadget might need to intercept e.g. a control-OUT completion
@@ -1050,8 +1056,14 @@ static void composite_disconnect(struct usb_gadget *gadget)
 	spin_lock_irqsave(&cdev->lock, flags);
 	if (cdev->config)
 		reset_config(cdev);
+#if 0
 	if (composite->disconnect)
 		composite->disconnect(cdev);
+#else
+	cdev->connected = 0;	//SJ_20110530
+	schedule_work(&cdev->switch_work);
+
+#endif
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
@@ -1096,6 +1108,8 @@ composite_unbind(struct usb_gadget *gadget)
 		usb_ep_free_request(gadget->ep0, cdev->req);
 	}
 	device_remove_file(&gadget->dev, &dev_attr_suspended);
+	switch_dev_unregister(&cdev->sw_connected);	//&*&*&*SJ_20110530, add "usb_connected" switch state for android gingerbread.
+	switch_dev_unregister(&cdev->sw_config);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
 	composite = NULL;
@@ -1114,6 +1128,40 @@ static u8 override_id(struct usb_composite_dev *cdev, u8 *desc)
 	return *desc;
 }
 
+static void
+composite_switch_work(struct work_struct *data)
+{
+	struct usb_composite_dev	*cdev =
+		container_of(data, struct usb_composite_dev, switch_work);
+	struct usb_configuration *config = cdev->config;
+//&*&*&*SJ1_20110530, add "usb_connected" switch state for android gingerbread.
+	int connected;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cdev->lock, flags);
+	if (cdev->connected != cdev->sw_connected.state) {
+		connected = cdev->connected;
+		//&*&*&*Beacon_20120322
+#ifdef CONFIG_REGULATOR_MAX8903_CABLE_TYPE_DETECTION
+		max8903_has_usb_configuration();
+#endif
+
+		spin_unlock_irqrestore(&cdev->lock, flags);
+		switch_set_state(&cdev->sw_connected, connected);
+	} else {
+		spin_unlock_irqrestore(&cdev->lock, flags);
+	}
+//&*&*&*SJ2_20110530, add "usb_connected" switch state for android gingerbread.
+	if (config)
+	{
+#ifdef CONFIG_REGULATOR_MAX8903_CABLE_TYPE_DETECTION
+		max8903_has_usb_configuration();
+#endif
+		switch_set_state(&cdev->sw_config, config->bConfigurationValue);
+	}
+	else
+		switch_set_state(&cdev->sw_config, 0);
+}
 static int composite_bind(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev	*cdev;
@@ -1163,6 +1211,16 @@ static int composite_bind(struct usb_gadget *gadget)
 	if (status < 0)
 		goto fail;
 
+		cdev->sw_connected.name = "usb_connected";
+		status = switch_dev_register(&cdev->sw_connected);
+		if (status < 0)
+			goto fail;
+	//&*&*&*SJ2_20110530, add "usb_connected" switch state for android gingerbread.
+		cdev->sw_config.name = "usb_configuration";
+		status = switch_dev_register(&cdev->sw_config);
+		if (status < 0)
+			goto fail;
+		INIT_WORK(&cdev->switch_work, composite_switch_work);
 	cdev->desc = *composite->dev;
 	cdev->desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 

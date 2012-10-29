@@ -112,9 +112,17 @@ static void omap3_enable_io_chain(void)
 				       "activation failed.\n");
 				return;
 			}
-			omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
-					     WKUP_MOD, PM_WKEN);
 		}
+		/*
+		 * Moving clearing of ST_IO_CHAIN outside of while loop.
+		 * When IO chain is triggered, s/w should wait for IO chain to
+		 * complete. Which is getting done in above while loop. Once the
+		 * bit is set, it should be cleared outside the while loop.
+		 * Moving the clearing of IO CHAIN status outside of loop. Else
+		 * we won't be waiting enough for IO chain to complete.
+		 */
+		omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
+					     WKUP_MOD, PM_WKEN);
 	}
 }
 
@@ -362,7 +370,7 @@ void omap_sram_idle(bool suspend)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
-	int per_going_off;
+	int per_going_off = 0; //Don't use OMAP3 GPIO glitch work around
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
 	int cam_fclken;
@@ -403,12 +411,6 @@ void omap_sram_idle(bool suspend)
 	/* Enable IO-PAD and IO-CHAIN wakeups */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
-	if (omap3_has_io_wakeup() &&
-	    (per_next_state < PWRDM_POWER_ON ||
-	     core_next_state < PWRDM_POWER_ON)) {
-		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
-		omap3_enable_io_chain();
-	}
 
 	pwrdm_pre_transition();
 
@@ -443,14 +445,9 @@ void omap_sram_idle(bool suspend)
 	}
 
 	/* PER */
-	if (per_next_state == PWRDM_POWER_OFF)
-			if (core_next_state != PWRDM_POWER_OFF)
-				per_next_state = PWRDM_POWER_RET;
-
 	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
-		omap2_gpio_prepare_for_idle(per_next_state, suspend);
-
-		pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
+		//per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
+		omap2_gpio_prepare_for_idle(per_going_off, suspend);
 	}
 
 	/* CORE */
@@ -469,6 +466,9 @@ void omap_sram_idle(bool suspend)
 
 
 		}
+		/* Enable IO-PAD and IO-CHAIN wakeups */
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
+		omap3_enable_io_chain();
 	}
 
 	omap3_intc_prepare_idle();

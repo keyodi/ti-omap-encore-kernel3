@@ -2959,12 +2959,12 @@ static void fsg_common_release(struct kref *ref)
 
 
 /*-------------------------------------------------------------------------*/
-
+unsigned int mass_storage_flag=0;
 static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct fsg_dev		*fsg = fsg_from_func(f);
 	struct fsg_common	*common = fsg->common;
-
+	mass_storage_flag=0;
 	DBG(fsg, "unbind\n");
 	if (fsg->common->fsg == fsg) {
 		fsg->common->new_fsg = NULL;
@@ -3026,6 +3026,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 		}
 	}
 
+	mass_storage_flag=1;
 	return 0;
 
 autoconf_fail:

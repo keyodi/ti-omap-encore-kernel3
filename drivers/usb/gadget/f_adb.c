@@ -33,7 +33,7 @@
 #define TX_REQ_MAX 4
 
 static const char adb_shortname[] = "android_adb";
-
+unsigned int android_adb_open=0;
 struct adb_dev {
 	struct usb_function function;
 	struct usb_composite_dev *cdev;
@@ -351,6 +351,8 @@ static ssize_t adb_write(struct file *fp, const char __user *buf,
 		return -ENODEV;
 	pr_debug("adb_write(%d)\n", count);
 
+	if (android_adb_open == 0)
+		android_adb_open=1;
 	if (adb_lock(&dev->write_excl))
 		return -EBUSY;
 
@@ -419,7 +421,7 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 	/* clear the error latch */
 	_adb_dev->error = 0;
-
+	android_adb_open=0;
 	adb_ready_callback();
 
 	return 0;

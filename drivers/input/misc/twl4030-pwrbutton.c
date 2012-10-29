@@ -29,10 +29,35 @@
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
 
+//&*&*&*Beacon_20120502
+#include <linux/delay.h>
+
 #define PWR_PWRON_IRQ (1 << 0)
 
 #define STS_HW_CONDITIONS 0xf
 
+//&*&*&*HC1_20110427, Add to control wakeup source
+struct input_dev *twl4030_pwr_global = NULL;
+
+void SendPowerbuttonEvent(void)
+{
+	if (twl4030_pwr_global != NULL)
+	{
+		input_report_key(twl4030_pwr_global, KEY_POWER, 1);
+		input_sync(twl4030_pwr_global);//&*&*&*Beacon_20120502,Add event sync & delay
+		mdelay(10);
+		input_report_key(twl4030_pwr_global, KEY_POWER, 0);
+		input_sync(twl4030_pwr_global);
+
+		printk("%s ...\n", __FUNCTION__);
+	}
+	else
+		printk("%s, fail !!!\n", __FUNCTION__);
+}
+EXPORT_SYMBOL(SendPowerbuttonEvent);
+//&*&*&*HC2_20110427, Add to control wakeup source
+
+//&*&*&*HC1_20110706, modify for event pair
 static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 {
 	struct input_dev *pwr = _pwr;
@@ -86,6 +111,9 @@ static int __init twl4030_pwrbutton_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pwr);
 
+//&*&*&*HC1_20110427, Add to control wakeup source
+	twl4030_pwr_global = pwr;
+//&*&*&*HC2_20110427, Add to control wakeup source
 	return 0;
 
 free_irq:
@@ -132,4 +160,3 @@ MODULE_DESCRIPTION("Triton2 Power Button");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Peter De Schrijver <peter.de-schrijver@nokia.com>");
 MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
-

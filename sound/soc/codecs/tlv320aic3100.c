@@ -1499,6 +1499,73 @@ unlock:
 	return result;
 }
 
+/*
+ *----------------------------------------------------------------------------
+ * Function : dac3100_headset_speaker_path
+ * Purpose  : This function is to check for the presence of Headset and
+ *            configure the Headphone of the Class D Speaker driver
+ *            Registers appropriately.
+ *
+ *----------------------------------------------------------------------------
+ */
+static int dac3100_headset_speaker_path(struct snd_soc_codec *codec)
+{
+	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+	int headset_detect_gpio = AUDIO_CODEC_HPH_DETECT_GPIO;
+	int headset_present = 0;
+
+	mutex_lock(&aic31xx->mutex);
+
+	headset_present = !(gpio_get_value(headset_detect_gpio));
+
+	aic31xx->headset_connected = headset_present;
+
+        DBG("%s: %d\n", __func__, headset_present);
+
+        if (aic31xx->playback_status == 1) {
+
+		/* If codec was not powered up, power up the same. */
+		if(headset_present) {
+			DBG("headset present and headset path Activated\n");
+                        aic31xx_write(codec, HEADPHONE_DRIVER, 0xC4); // 0xCC ON
+                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, 0x06); // OFF
+		} else {
+			DBG( "headset removed and headset path "
+                               "Deactivated\n");
+
+                        aic31xx_write(codec, HEADPHONE_DRIVER ,0x04); // OFF
+                        aic31xx_write(codec, CLASSD_SPEAKER_AMP ,0xC6 ); //ON
+                }
+
+                /* We will force the dac3100->mute to 1 to ensure that the
+                 * following function executes completely.
+                 */
+                aic31xx->mute = 1;
+                /* Now unmute the appropriate Codec sections with Volume Ramping */
+                aic31xx_dac_mute(codec, 0);
+
+#ifdef CONFIG_ADAPTIVE_FILTER
+		/* Update the Biquad Array */
+		aic31xx_update_biquad_array(codec, headset_present,
+					    aic31xx->playback_status);
+#endif
+	}
+	mutex_unlock(&aic31xx->mutex);
+	return 0;
+}
+
+/*
+ *----------------------------------------------------------------------------
+ * Function : i2c_dac3100_headset_access_work
+ * Purpose  : Worker Thread Function.
+ *
+ *----------------------------------------------------------------------------
+ */
+static void i2c_dac3100_headset_access_work (struct work_struct *work)
+{
+	dac3100_headset_speaker_path(codec_work_var_glob);
+}
+
 /* aic31xx_suspend - ALSA callback function called during
  * system level suspend operation
 */
@@ -1544,14 +1611,18 @@ static int aic31xx_resume(struct snd_soc_codec *codec)
 	for (i = 0; i < sizeof(aic31xx_reg_init) / sizeof(struct aic31xx_configs); i++) {
 		aic31xx_write(codec, aic31xx_reg_init[i].reg_offset, aic31xx_reg_init[i].reg_val);
 	}
-	aic31xx_write(codec,CLK_REG_1,PLLCLK_2_CODEC_CLKIN);
-	aic31xx_write(codec, L_ANLOG_VOL_2_HPL,0x9E);
-	aic31xx_write(codec, R_ANLOG_VOL_2_HPR,0x9E);
-	aic31xx_write(codec, L_ANLOG_VOL_2_SPL,0x80);
-	aic31xx_write(codec, R_ANLOG_VOL_2_SPR,0x80);
+	aic31xx_write(codec, CLK_REG_1, PLLCLK_2_CODEC_CLKIN);
+	aic31xx_write(codec, L_ANLOG_VOL_2_HPL, 0x9E);
+	aic31xx_write(codec, R_ANLOG_VOL_2_HPR, 0x9E);
+	aic31xx_write(codec, L_ANLOG_VOL_2_SPL, 0x80);
+	aic31xx_write(codec, R_ANLOG_VOL_2_SPR, 0x80);
 
 	/* Perform the Device Soft Power UP */
 	snd_soc_update_bits(codec, MICBIAS_CTRL, 0x80, (CLEAR & ~BIT7));
+
+	/* Check to see if headphone is connected */
+	dac3100_headset_speaker_path(codec);
+
 	/* Added delay as per the suggestion from TI Audio team */
         mdelay (50);
 	DBG("aic31xx_resume: Suspend_bias_level %d\r\n",
@@ -1671,73 +1742,6 @@ static void codec_int_gpio_bh(struct work_struct *work)
 }
 
 #endif
-
-/*
- *----------------------------------------------------------------------------
- * Function : dac3100_headset_speaker_path
- * Purpose  : This function is to check for the presence of Headset and
- *            configure the Headphone of the Class D Speaker driver
- *            Registers appropriately.
- *
- *----------------------------------------------------------------------------
- */
-static int dac3100_headset_speaker_path(struct snd_soc_codec *codec)
-{
-	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
-	int headset_detect_gpio = AUDIO_CODEC_HPH_DETECT_GPIO;
-	int headset_present = 0;
-
-	mutex_lock(&aic31xx->mutex);
-
-	headset_present = !(gpio_get_value(headset_detect_gpio));
-
-	aic31xx->headset_connected = headset_present;
-
-        DBG("%s: %d\n", __func__, headset_present);
-
-        if (aic31xx->playback_status == 1) {
-
-		/* If codec was not powered up, power up the same. */
-		if(headset_present) {
-			DBG("headset present and headset path Activated\n");
-                        aic31xx_write(codec, HEADPHONE_DRIVER, 0xC4); // 0xCC ON
-                        aic31xx_write(codec, CLASSD_SPEAKER_AMP, 0x06); // OFF
-		} else {
-			DBG( "headset removed and headset path "
-                               "Deactivated\n");
-
-                        aic31xx_write(codec, HEADPHONE_DRIVER ,0x04); // OFF
-                        aic31xx_write(codec, CLASSD_SPEAKER_AMP ,0xC6 ); //ON
-                }
-
-                /* We will force the dac3100->mute to 1 to ensure that the
-                 * following function executes completely.
-                 */
-                aic31xx->mute = 1;
-                /* Now unmute the appropriate Codec sections with Volume Ramping */
-                aic31xx_dac_mute(codec, 0);
-
-#ifdef CONFIG_ADAPTIVE_FILTER
-		/* Update the Biquad Array */
-		aic31xx_update_biquad_array(codec, headset_present,
-					    aic31xx->playback_status);
-#endif
-	}
-	mutex_unlock(&aic31xx->mutex);
-	return 0;
-}
-
-/*
- *----------------------------------------------------------------------------
- * Function : i2c_dac3100_headset_access_work
- * Purpose  : Worker Thread Function.
- *
- *----------------------------------------------------------------------------
- */
-static void i2c_dac3100_headset_access_work (struct work_struct *work)
-{
-	dac3100_headset_speaker_path(codec_work_var_glob);
-}
 
 typedef unsigned int (*hw_read_t)(struct snd_soc_codec *, unsigned int);
 
