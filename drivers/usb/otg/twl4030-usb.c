@@ -179,7 +179,6 @@ static struct wake_lock usb_lock;
 /* internal define on top of container_of */
 #define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg);
 
-extern void SendPowerbuttonEvent( void );
 /*-------------------------------------------------------------------------*/
 
 static int twl4030_i2c_write_u8_verify(struct twl4030_usb *twl,
@@ -581,10 +580,7 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 		 */
 		if (status == USB_EVENT_NONE) {
 			twl4030_phy_suspend(twl, 0);
-			if(twl->enter_early_suspend == 1) {
-				SendPowerbuttonEvent();
-				printk("[twl4030-usb]Enter %s, send power suspend event.\n", __FUNCTION__);
-			}
+
 			if(wake_lock_active(&usb_lock))
 				wake_unlock(&usb_lock);
 		} else {

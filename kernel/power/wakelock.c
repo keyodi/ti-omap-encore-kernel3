@@ -40,14 +40,6 @@ module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 #define WAKE_LOCK_AUTO_EXPIRE            (1U << 10)
 #define WAKE_LOCK_PREVENTING_SUSPEND     (1U << 11)
 
-
-//&*&*&*HC1_20110427, Add to control wakeup source
-#include <plat/wakeup-source.h>
-extern void SendPowerbuttonEvent( void );
-int g_wakeup_reason = 0;
-//&*&*&*HC2_20110427, Add to control wakeup source
-
-
 static DEFINE_SPINLOCK(list_lock);
 static LIST_HEAD(inactive_locks);
 static struct list_head active_wake_locks[WAKE_LOCK_TYPE_COUNT];
@@ -280,7 +272,6 @@ static void suspend(struct work_struct *work)
 {
 	int ret;
 	int entry_event_num;
-	int send_event = 0;
 	struct timespec ts_entry, ts_exit;
 
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
