@@ -18,6 +18,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
+#include <linux/delay.h>
 
 #include <video/omapdss.h>
 #include <plat/mcspi.h>
@@ -34,7 +35,13 @@
 
 static void boxer_backlight_set_power(struct omap_pwm_led_platform_data *self, int on_off)
 {
-	gpio_direction_output(LCD_BACKLIGHT_EN_EVT2, !on_off);
+	if (on_off) {
+		msleep(250);
+		gpio_direction_output(LCD_BACKLIGHT_EN_EVT2, 1);
+	}
+	else
+		gpio_direction_output(LCD_BACKLIGHT_EN_EVT2, 0);
+
 	gpio_set_value(LCD_BACKLIGHT_EN_EVT2, !on_off);
 }
 
