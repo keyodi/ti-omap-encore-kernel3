@@ -403,13 +403,14 @@ void omap_sram_idle(bool suspend)
 	/* Enable IO-PAD and IO-CHAIN wakeups */
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
+#if 0
 	if (omap3_has_io_wakeup() &&
 	    (per_next_state < PWRDM_POWER_ON ||
 	     core_next_state < PWRDM_POWER_ON)) {
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
 		omap3_enable_io_chain();
 	}
-
+#endif
 	pwrdm_pre_transition();
 
 	/*
@@ -537,7 +538,7 @@ void omap_sram_idle(bool suspend)
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
 		omap2_gpio_resume_after_idle(per_going_off);
 	}
-
+#if 0
 	/* Disable IO-PAD and IO-CHAIN wakeup */
 	if (omap3_has_io_wakeup() &&
 	    (per_next_state < PWRDM_POWER_ON ||
@@ -546,6 +547,7 @@ void omap_sram_idle(bool suspend)
 					     PM_WKEN);
 		omap3_disable_io_chain();
 	}
+#endif
 
 abort_gpio:
 	clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
