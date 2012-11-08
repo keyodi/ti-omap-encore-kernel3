@@ -51,7 +51,7 @@
 // Empirically tested to work, revisit when Cypress gives us the real timings
 #define CYTTSP_MDELAY 125
 
-#include <linux/cyttsp.h>
+#include <linux/input/cyttsp.h>
 
 uint32_t cyttsp_tsdebug1 = 0xff;
 module_param_named(tsdebug1, cyttsp_tsdebug1, uint, 0664);

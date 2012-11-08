@@ -295,10 +295,6 @@ static void suspend(struct work_struct *work)
 			"(%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)\n", ret,
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts_exit.tv_nsec);
-		//&*&*&*BC1_110513:add the wifi suspend wakelock to avoid wifi or system crash
-				if(ret != 0)
-				wake_lock_timeout(&unknown_wakeup, 2*HZ);	
-		//&*&*&*BC2_110513:add the wifi suspend wakelock to avoid wifi or system crash
 	}
 
 	if (ts_exit.tv_sec - ts_entry.tv_sec <= 1) {

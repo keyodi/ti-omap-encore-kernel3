@@ -32,7 +32,7 @@
 
 #include <mach/board-encore.h>
 
-#include <linux/cyttsp.h>
+#include <linux/input/cyttsp.h>
 #include <linux/input/ft5x06.h>
 #include <linux/input/kxtf9.h>
 #include <linux/power/max17042.h>
@@ -142,6 +142,7 @@ int ft5x06_dev_init(int resource)
 		}
 
 		gpio_direction_input(OMAP_FT5x06_GPIO);
+
 	} else {
 		gpio_free(OMAP_FT5x06_GPIO);
 		gpio_free(OMAP_FT5x06_RESET_GPIO);
