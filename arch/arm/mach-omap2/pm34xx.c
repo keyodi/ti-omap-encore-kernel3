@@ -112,9 +112,17 @@ static void omap3_enable_io_chain(void)
 				       "activation failed.\n");
 				return;
 			}
-			omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
-					     WKUP_MOD, PM_WKEN);
 		}
+		/*
+		 * Moving clearing of ST_IO_CHAIN outside of while loop.
+		 * When IO chain is triggered, s/w should wait for IO chain to
+		 * complete. Which is getting done in above while loop. Once the
+		 * bit is set, it should be cleared outside the while loop.
+		 * Moving the clearing of IO CHAIN status outside of loop. Else
+		 * we won't be waiting enough for IO chain to complete.
+		 */
+		omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
+-                                            WKUP_MOD, PM_WKEN);
 	}
 }
 
@@ -444,17 +452,14 @@ void omap_sram_idle(bool suspend)
 	}
 
 	/* PER */
-	if (per_next_state == PWRDM_POWER_OFF)
-			if (core_next_state != PWRDM_POWER_OFF)
-				per_next_state = PWRDM_POWER_RET;
-
 	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
 		//per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
 		if (omap2_gpio_prepare_for_idle(per_going_off, suspend)) {
 			pwrdm_post_transition();
 			goto abort_gpio;
 		}
-		pwrdm_set_next_pwrst(per_pwrdm, per_next_state);
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
+		omap3_enable_io_chain();
 	}
 
 	/* CORE */
@@ -537,6 +542,10 @@ void omap_sram_idle(bool suspend)
 	if (per_next_state < PWRDM_POWER_ON && core_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
 		omap2_gpio_resume_after_idle(per_going_off);
+
+		omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+					     PM_WKEN);
+		omap3_disable_io_chain();
 	}
 #if 0
 	/* Disable IO-PAD and IO-CHAIN wakeup */
