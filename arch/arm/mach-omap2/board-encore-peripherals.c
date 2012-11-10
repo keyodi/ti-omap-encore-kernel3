@@ -101,7 +101,6 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 	.shift_adj      = SHIFT_ADJ_2G,
 
 	// Map the axes from the sensor to the device.
-
 	//. SETTINGS FOR THE EVT1A:
 	.axis_map_x     = 1,
 	.axis_map_y     = 0,

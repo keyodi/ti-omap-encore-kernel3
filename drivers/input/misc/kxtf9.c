@@ -30,7 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
-#include <linux/module.h>
+
 //#define KXTF9_DEBUG
 
 #include <linux/input/kxtf9.h>
@@ -97,6 +97,7 @@ struct {
 	80,	ODR25F}, {
 	0,	ODR12_5F},
 };
+
 struct kxtf9_data {
 	struct i2c_client *client;
 	struct kxtf9_platform_data *pdata;
@@ -112,6 +113,7 @@ struct kxtf9_data {
 	int irq;
 	struct early_suspend early_suspend;
 };
+static void  kxtf9_shutdown(struct i2c_client *client);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void kxtf9_late_resume(struct early_suspend *handler);
@@ -191,8 +193,9 @@ static int kxtf9_verify(struct kxtf9_data *tf9)
 	/*** <end> DEBUG OUTPUT - REMOVE ***/
 	if (err < 0)
 		dev_err(&tf9->client->dev, "read err int source\n");
-	if (buf != 1)
-		err = -1;
+
+	pr_info("kxtf9(%u) detected\n", buf);
+
 	return err;
 }
 
@@ -215,27 +218,27 @@ static int kxtf9_hw_init(struct kxtf9_data *tf9)
 	if (err < 0)
 		return err;
 	aprintk("kxtf9: kxtf9_hw_init > kxtf9 resume DATA_CTRL_REG!\n");
-	
+
 	err = kxtf9_i2c_write(tf9, CTRL_REG3, &tf9->resume[RES_CTRL_REG3], 1);
 	if (err < 0)
 		return err;
 	aprintk("kxtf9: kxtf9_hw_init > kxtf9 resume CTRL_REG3!\n");
-	
+
 	err = kxtf9_i2c_write(tf9, TILT_TIMER, &tf9->resume[RES_TILT_TIMER], 1);
 	if (err < 0)
 		return err;
 	aprintk("kxtf9: kxtf9_hw_init > kxtf9 resume TILT_TIMER!\n");
-	
+
 	err = kxtf9_i2c_write(tf9, WUF_TIMER, &tf9->resume[RES_WUF_TIMER], 1);
 	if (err < 0)
 		return err;
 	aprintk("kxtf9: kxtf9_hw_init > kxtf9 resume WUF_TIMER!\n");
-	
+
 	err = kxtf9_i2c_write(tf9, WUF_THRESH, &tf9->resume[RES_WUF_THRESH], 1);
 	if (err < 0)
 		return err;
 	aprintk("kxtf9: kxtf9_hw_init > kxtf9 resume WUF_THERSH!\n");
-	
+
 	buf[0] = tf9->resume[RES_TDT_TIMER];
 	buf[1] = tf9->resume[RES_TDT_H_THRESH];
 	buf[2] = tf9->resume[RES_TDT_L_THRESH];
@@ -531,7 +534,7 @@ static int kxtf9_get_acceleration_data(struct kxtf9_data *tf9, int *xyz)
 	/* x,y,z hardware values */
 	int hw_d[3];
 
-//	aprintk("kxtf9: kxtf9_get_acceleration_data ...\n");
+	aprintk("kxtf9: kxtf9_get_acceleration_data ...\n");
 
 	err = kxtf9_i2c_read(tf9, XOUT_L, acc_data, 6);
 	if (err < 0)
@@ -565,7 +568,7 @@ static int kxtf9_get_acceleration_data(struct kxtf9_data *tf9, int *xyz)
 
 static void kxtf9_report_values(struct kxtf9_data *tf9, int *xyz)
 {
-//	aprintk("kxtf9: kxtf9_report_value ...\n");
+	aprintk("kxtf9: kxtf9_report_value ...\n");
 
 	input_report_rel(tf9->input_dev, REL_X, xyz[0]);
 	input_report_rel(tf9->input_dev, REL_Y, xyz[1]);
@@ -625,7 +628,7 @@ static void kxtf9_input_work_func(struct work_struct *work)
 						struct kxtf9_data, input_work);
 	int xyz[3] = { 0 };
 
-//	aprintk("kxtf9: kxtf9_input_work_func ...\n");
+	aprintk("kxtf9: kxtf9_input_work_func ...\n");
 
 	mutex_lock(&tf9->lock);
 
@@ -1055,6 +1058,7 @@ err0:
 	return err;
 }
 
+
 static int __devexit kxtf9_remove(struct i2c_client *client)
 {
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
@@ -1083,7 +1087,6 @@ static int kxtf9_resume(struct i2c_client *client)
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
 
 	return kxtf9_enable(tf9);
-	printk("KXTF9 resume\n");
 }
 
 static int kxtf9_suspend(struct i2c_client *client, pm_message_t mesg)
@@ -1091,23 +1094,31 @@ static int kxtf9_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
 
 	return kxtf9_disable(tf9);
-	printk("KXTF9 suspend\n");
 }
 #endif
+void remove_i2c_driver(void);
+static void  kxtf9_shutdown(struct i2c_client *client)
+{
+       struct kxtf9_data *tf9 = i2c_get_clientdata(client);
+       kxtf9_device_power_off(tf9);
+       cancel_work_sync(&tf9->irq_work);
+	cancel_delayed_work_sync(&tf9->input_work);
+       remove_i2c_driver();
+	printk("kxtf9: Shutdown. \n");
+}
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void kxtf9_late_resume(struct early_suspend *handler)
 {
 	struct kxtf9_data *tf9 = container_of(handler, struct kxtf9_data, early_suspend);
 	kxtf9_resume(tf9->client);
-	printk("KXTF9 late resume\n");
 }
 
 static void kxtf9_early_suspend(struct early_suspend *handler)
 {
 	struct kxtf9_data *tf9 = container_of(handler, struct kxtf9_data, early_suspend);
 	kxtf9_suspend(tf9->client, PMSG_SUSPEND);
-	printk("KXTF9 early suspend\n");
 }
 #endif
 
@@ -1128,9 +1139,14 @@ static struct i2c_driver kxtf9_driver = {
 	.resume = kxtf9_resume,
 	.suspend = kxtf9_suspend,
 #endif
+       .shutdown = kxtf9_shutdown,
 	.id_table = kxtf9_id,
 };
 
+void remove_i2c_driver(void)
+{
+	i2c_del_driver(&kxtf9_driver);
+}
 static int __init kxtf9_init(void)
 {
 	aprintk("kxtf9: kxtf9_init ...\n");
@@ -1140,7 +1156,6 @@ static int __init kxtf9_init(void)
 static void __exit kxtf9_exit(void)
 {
 	i2c_del_driver(&kxtf9_driver);
-	printk("KXTF9 exit function\n");
 }
 
 module_init(kxtf9_init);
