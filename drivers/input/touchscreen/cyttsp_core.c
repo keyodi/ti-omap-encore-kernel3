@@ -517,7 +517,7 @@ void cyttsp_early_suspend(struct early_suspend *h)
 {
 	struct cyttsp *ts = container_of(h, struct cyttsp, early_suspend);
 	int retval = 0;
-printk("SUSPEND CYTTSP ************************************\n");
+
 	retval = cyttsp_suspend(ts->dev);
 	if (retval < 0) {
 		pr_err("%s: Early suspend failed with error code %d\n",
@@ -529,7 +529,7 @@ void cyttsp_late_resume(struct early_suspend *h)
 {
 	struct cyttsp *ts = container_of(h, struct cyttsp, early_suspend);
 	int retval = 0;
-printk("RESUME CYTTSP ************************************\n");
+
 	retval = cyttsp_resume(ts->dev);
 	if (retval < 0) {
 		pr_err("%s: Late resume failed with error code %d\n",
