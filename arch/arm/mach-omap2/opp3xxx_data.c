@@ -158,12 +158,23 @@ static struct omap_opp_def __initdata omap36xx_opp_def_list[] = {
 	OPP_INITIALIZER("mpu", "dpll1_ck", "mpu_iva", true,
 				1000000000, OMAP3630_VDD_MPU_OPP1G_UV),
 
+/* S[, 2012.07.02, mannsik.chung@lge.com, Boost L3 clock. (TI patch by deepak.muddegowda@sasken.com) */
+#if 0
 	/* L3 OPP1 - OPP50 */
 	OPP_INITIALIZER("l3_main", "l3_ick", "core", true,
 				100000000, OMAP3630_VDD_CORE_OPP50_UV),
 	/* L3 OPP2 - OPP100, OPP-Turbo, OPP-SB */
 	OPP_INITIALIZER("l3_main", "l3_ick", "core", true,
 				200000000, OMAP3630_VDD_CORE_OPP100_UV),
+#else
+	/* L3 OPP1 - OPP50 */
+	OPP_INITIALIZER("l3_main", "dpll3_m2_ck", "core", true,
+				200000000, OMAP3630_VDD_CORE_OPP50_UV),
+	/* L3 OPP2 - OPP100, OPP-Turbo, OPP-SB */
+	OPP_INITIALIZER("l3_main", "dpll3_m2_ck", "core", true,
+				400000000, OMAP3630_VDD_CORE_OPP100_UV),
+#endif
+/* E], 2012.07.02, mannsik.chung@lge.com, Boost L3 clock. (TI patch by deepak.muddegowda@sasken.com) */
 
 	/* DSP OPP1 - OPP50 */
 	OPP_INITIALIZER("iva", "dpll2_ck", "mpu_iva", true,  260000000, OMAP3630_VDD_MPU_OPP50_UV),
