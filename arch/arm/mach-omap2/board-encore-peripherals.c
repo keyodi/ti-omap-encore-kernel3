@@ -52,7 +52,6 @@
 #define OMAP_CYTTSP_GPIO         	99
 #define OMAP_CYTTSP_RESET_GPIO   	46
 
-#define FT5x06_I2C_SLAVEADDRESS  	(0x70 >> 1)
 #define OMAP_FT5x06_GPIO         	99
 #define OMAP_FT5x06_RESET_GPIO   	46
 
@@ -714,7 +713,7 @@ static struct i2c_board_info __initdata encore_i2c_bus2_info[] = {
 		.irq = OMAP_GPIO_IRQ(OMAP_CYTTSP_GPIO),
 	},
 	{
- 		I2C_BOARD_INFO(FT_I2C_NAME, FT5x06_I2C_SLAVEADDRESS),
+ 		I2C_BOARD_INFO(FT_DEVICE_5x06_NAME, FT5x06_I2C_SLAVEADDRESS),
  		.platform_data = &ft5x06_platform_data,
 		.irq = OMAP_GPIO_IRQ(OMAP_FT5x06_GPIO),
 	},
