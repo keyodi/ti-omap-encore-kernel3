@@ -185,6 +185,7 @@ typedef enum __dbg_level
 	}
 
 static int cur_dbg_level = dbg_level_info;
+extern int ft5x06_dev_init(int resource);
 module_param_named(debug_level, cur_dbg_level, int, S_IRUGO | S_IWUSR | S_IWGRP);
 MODULE_PARM_DESC(debug_level, "Debug Level");
 
@@ -6409,6 +6410,13 @@ static int __devinit ft5x06_probe(struct i2c_client *client, const struct i2c_de
 	struct ft5x06 *ts;
 	int retval = 0;
 
+	// request gpio resources
+	if (0 > ft5x06_dev_init(1))
+	{
+		retval = -ENODEV;
+		goto error_return;
+	}
+
 	DBG_PRINT(dbg_level_info, "%s: " FTX_TAG ": %s(): INFO: probing for %s @ %s .\n", dev_name(&client->dev), __func__, id->name, dev_name(&client->dev));
 
 	if (!pdata)
@@ -6589,6 +6597,9 @@ err_power_on:
 	DBG_PRINT(dbg_level_debug, "%s: " FTX_TAG ": %s(): DEBUG: Freeing private structure.\n", dev_name(&client->dev), __func__);
 	kfree(ts);
 	ts = NULL;
+
+error_devinit0:
+    ft5x06_dev_init(0);
 err_data_alloc:
 	if(pdata->release_resources)
 	{
