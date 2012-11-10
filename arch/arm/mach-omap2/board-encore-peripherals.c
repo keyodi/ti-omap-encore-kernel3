@@ -183,13 +183,6 @@ int cyttsp_dev_init(int resource)
 		gpio_free(OMAP_CYTTSP_RESET_GPIO);
 	}
 
-	mdelay(100);
-	printk("Reseting TMA340\n");
-	gpio_direction_output(OMAP_CYTTSP_RESET_GPIO, 0);
-	mdelay(10);
-	gpio_direction_output(OMAP_CYTTSP_RESET_GPIO, 1);
-	mdelay(100);
-
 	return 0;
 }
 

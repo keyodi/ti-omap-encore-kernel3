@@ -587,6 +587,13 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 		goto err_free_mem;
 	}
 
+	mdelay(100);
+	printk("Reseting TMA340\n");
+	gpio_direction_output(46, 0);
+	mdelay(10);
+	gpio_direction_output(46, 1);
+	mdelay(100);
+
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->pdata = dev->platform_data;
