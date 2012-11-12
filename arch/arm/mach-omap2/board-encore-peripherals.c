@@ -187,32 +187,24 @@ int cyttsp_dev_init(int resource)
 }
 
 static struct cyttsp_platform_data cyttsp_platform_data = {
-        .maxx = 480,
-        .maxy = 800,
-        .flags = 0,
-        .gen = CY_GEN3,
-        .use_st = CY_USE_ST,
-        .use_mt = CY_USE_MT,
-        .use_hndshk = CY_SEND_HNDSHK,
-        .use_trk_id = 1, //CY_USE_TRACKING_ID,
-        .use_sleep = CY_USE_SLEEP,
-        .use_gestures = 0,
-        /* activate up to 4 groups
-         * and set active distance
-         */
-        .gest_set = 0,
-        /* change act_intrvl to customize the Active power state 
-         * scanning/processing refresh interval for Operating mode
-         */
-        .act_intrvl = CY_ACT_INTRVL_DFLT,
-        /* change tch_tmout to customize the touch timeout for the
-         * Active power state for Operating mode
-         */
-        .tch_tmout = CY_TCH_TMOUT_DFLT,
-        /* change lp_intrvl to customize the Low Power power state 
-         * scanning/processing refresh interval for Operating mode
-         */
-        .lp_intrvl = CY_LP_INTRVL_DFLT,
+	.name = CY_I2C_NAME,
+	//.init = cyttsp_dev_init,
+	.maxx = 600,
+	.maxy = 1024,
+	.use_hndshk = 0 /*CY_SEND_HNDSHK*/,
+	/* change act_intrvl to customize the Active power state
+	 * scanning/processing refresh interval for Operating mode
+	 */
+	.act_intrvl = CY_ACT_INTRVL_DFLT,
+	/* change tch_tmout to customize the touch timeout for the
+	 * Active power state for Operating mode
+	 */
+	.tch_tmout = CY_TCH_TMOUT_DFLT,
+	/* change lp_intrvl to customize the Low Power power state
+	 * scanning/processing refresh interval for Operating mode
+	 */
+	.lp_intrvl = CY_LP_INTRVL_DFLT,
+	.irq_gpio = OMAP_CYTTSP_GPIO,
 };
 
 static struct resource max8903_gpio_resources_evt1a[] = {
