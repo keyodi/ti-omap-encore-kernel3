@@ -122,7 +122,7 @@ static void omap3_enable_io_chain(void)
 		 * we won't be waiting enough for IO chain to complete.
 		 */
 		omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK,
--                                            WKUP_MOD, PM_WKEN);
+					     WKUP_MOD, PM_WKEN);
 	}
 }
 
