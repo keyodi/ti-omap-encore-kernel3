@@ -39,6 +39,58 @@ static struct omap_device_pm_latency omap_sr_latency[] = {
 	},
 };
 
+#ifdef CONFIG_MACH_ENCORE
+#define GAIN_MAXLIMIT	16
+#define R_MAXLIMIT	256
+
+#define NVALUERECIPROCAL_SENPGAIN_SHIFT	20
+#define NVALUERECIPROCAL_SENNGAIN_SHIFT	16
+#define NVALUERECIPROCAL_RNSENP_SHIFT	8
+#define NVALUERECIPROCAL_RNSENN_SHIFT	0
+
+static __init void cal_reciprocal(u32 sensor, u32 *sengain, u32 *rnsen)
+{
+	u32 gn, rn, mul;
+
+	for (gn = 0; gn < GAIN_MAXLIMIT; gn++) {
+		mul = 1 << (gn + 8);
+		rn = mul / sensor;
+		if (rn < R_MAXLIMIT) {
+			*sengain = gn;
+			*rnsen = rn;
+		}
+	}
+}
+
+static __init u32 cal_test_nvalue(u32 sennval, u32 senpval)
+{
+	u32 senpgain, senngain;
+	u32 rnsenp, rnsenn;
+
+	/* Calculating the gain and reciprocal of the SenN and SenP values */
+	cal_reciprocal(senpval, &senpgain, &rnsenp);
+	cal_reciprocal(sennval, &senngain, &rnsenn);
+
+	return (senpgain << NVALUERECIPROCAL_SENPGAIN_SHIFT) |
+		(senngain << NVALUERECIPROCAL_SENNGAIN_SHIFT) |
+		(rnsenp << NVALUERECIPROCAL_RNSENP_SHIFT) |
+		(rnsenn << NVALUERECIPROCAL_RNSENN_SHIFT);
+}
+
+struct sr_test_nvalue_params {
+	u32 nval;
+	u32 pval;
+};
+
+static struct sr_test_nvalue_params omap36xx_sr_testing_nvalues[] = {
+	{  581,  489 }, /* OPP1 */
+	{ 1072,  910 }, /* OPP2 */
+	{ 1405, 1200 }, /* OPP3 */
+	{ 1842, 1580 }, /* OPP4 */
+	{ 1950, 1680 }, /* OPP5 */
+};
+#endif /* CONFIG_MACH_ENCORE */
+
 /* Read EFUSE values from control registers for OMAP3430 */
 static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 				struct omap_sr_data *sr_data)
@@ -54,6 +106,16 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 
 	for (i = 0; i < count; i++) {
 		u32 v;
+
+#ifdef CONFIG_MACH_ENCORE
+		/* Use test nvalues gleaned from 2.6.32 for OPP4/5 if those
+		 * OPPs are enabled, since OMAP3621 doesn't have efuse values
+		 * for those OPPs */
+		if (i >= 3) {
+			v = cal_test_nvalue(omap36xx_sr_testing_nvalues[i].nval,
+					omap36xx_sr_testing_nvalues[i].pval);
+		} else
+#endif
 		/*
 		 * In OMAP4 the efuse registers are 24 bit aligned.
 		 * A __raw_readl will fail for non-32 bit aligned address
