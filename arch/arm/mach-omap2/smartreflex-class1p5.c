@@ -303,6 +303,7 @@ done_calib:
 				__func__, voltdm->name, u_volt_margin,
 				volt_data->volt_margin, volt_data->volt_nominal,
 				u_volt_current);
+			u_volt_safe = volt_data->volt_nominal;
 		}
 	}
 
