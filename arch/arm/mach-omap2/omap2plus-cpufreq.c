@@ -79,7 +79,9 @@ static unsigned int omap_getspeed(unsigned int cpu)
 
 static int omap_cpufreq_scale(unsigned int target_freq, unsigned int cur_freq)
 {
+#ifdef CONFIG_SMP
 	unsigned int i;
+#endif
 	int ret;
 	struct cpufreq_freqs freqs;
 
