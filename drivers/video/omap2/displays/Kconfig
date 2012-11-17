@@ -16,6 +16,15 @@ config PANEL_BOXER_CPT
 	  set to N.
 	depends on PANEL_BOXER
 
+config PANEL_BOXER_TRUE_COLOR
+	bool "Support 24/32-bit color on Boxer panel"
+	depends on PANEL_BOXER
+	default n
+	help
+	  Whether the Boxer driver should default to using 24-bit
+	  "true color" modes.  Setting this option increases color fidelity,
+	  but reduces performance.
+
 config PANEL_GENERIC_DPI
         tristate "Generic DPI Panel"
 	depends on OMAP2_DSS_DPI

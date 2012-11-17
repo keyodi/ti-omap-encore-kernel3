@@ -206,6 +206,15 @@ static void boxer_get_resolution(struct omap_dss_device *dssdev,
 	*yres = dssdev->panel.timings.y_res;
 }
 
+static int boxer_get_recommended_bpp(struct omap_dss_device *dssdev)
+{
+#ifdef CONFIG_PANEL_BOXER_TRUE_COLOR
+	return 24;
+#else
+	return 16;
+#endif
+}
+
 static void boxer_panel_set_timings(struct omap_dss_device *dssdev,
 				    struct omap_video_timings *timings)
 {
@@ -234,7 +243,7 @@ static struct omap_dss_driver boxer_driver = {
 	.resume         = boxer_panel_resume,
 
 	.get_resolution = boxer_get_resolution,
-	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
+	.get_recommended_bpp = boxer_get_recommended_bpp,
 
 	.set_timings = boxer_panel_set_timings,
 	.get_timings = boxer_panel_get_timings,
