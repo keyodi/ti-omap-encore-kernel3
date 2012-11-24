@@ -12,6 +12,7 @@ struct gpio_keys_button {
 	int debounce_interval;	/* debounce ticks interval in msecs */
 	bool can_disable;
 	int value;		/* axis value for EV_ABS */
+	bool resume_event;	/* workaround for BN home button resume */
 };
 
 struct gpio_keys_platform_data {
@@ -24,5 +25,4 @@ struct gpio_keys_platform_data {
 	void (*disable)(struct device *dev);
 	const char *name;		/* input device name */
 };
-
 #endif
