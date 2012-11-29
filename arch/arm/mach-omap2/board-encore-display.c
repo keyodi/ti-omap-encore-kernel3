@@ -99,23 +99,13 @@ static struct omap_dss_device evt_lcd_device = {
 			.data_lines	= 24,
 		},
 	},
-	.clocks		= {
-		.dispc	= {
-			.channel	= {
-				.lck_div        = 1,
-				.pck_div        = 4,
-				.lcd_clk_src    = OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
-			},
-			.dispc_fclk_src = OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
-		},
-	},
         .panel          = {
 		.config		= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
 				  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
 		.timings	= {
 			.x_res          = 1024,
 			.y_res          = 600,
-			.pixel_clock    = 65000, /* in kHz */
+			.pixel_clock    = 86400, /* in kHz */
 			.hfp            = 70,	 /* HFP fix 160 */
 			.hsw            = 40,    /* HSW = 1~140 */
 			.hbp            = 200,   /* HSW + HBP = 160 */
