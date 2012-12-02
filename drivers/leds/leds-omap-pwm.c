@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/earlysuspend.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
@@ -27,11 +28,19 @@
 
 #define MAX_GPTIMER_ID		12
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void omap_pwm_led_early_suspend(struct early_suspend *handler);
+static void omap_pwm_led_late_resume(struct early_suspend *handler);
+#endif
+
 struct omap_pwm_led {
 	struct led_classdev cdev;
 	struct omap_pwm_led_platform_data *pdata;
 	struct omap_dm_timer *intensity_timer;
 	struct omap_dm_timer *blink_timer;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend  early_suspend;
+#endif
 	int powered;
 	unsigned int on_period, off_period;
 	enum led_brightness brightness;
@@ -358,6 +367,13 @@ static int omap_pwm_led_probe(struct platform_device *pdev)
 
 	}
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	led->early_suspend.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
+	led->early_suspend.suspend = omap_pwm_led_early_suspend;
+	led->early_suspend.resume  = omap_pwm_led_late_resume;
+	register_early_suspend(&led->early_suspend);
+#endif
+
 	if(pdata->def_brightness)
 		omap_pwm_led_set(&led->cdev, pdata->def_brightness);
 
@@ -381,6 +397,9 @@ static int omap_pwm_led_remove(struct platform_device *pdev)
 {
 	struct omap_pwm_led *led = pdev_to_omap_pwm_led(pdev);
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&led->early_suspend);
+#endif
 	device_remove_file(led->cdev.dev,
 				 &dev_attr_on_period);
 	device_remove_file(led->cdev.dev,
@@ -396,7 +415,36 @@ static int omap_pwm_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void omap_pwm_led_early_suspend(struct early_suspend *handler)
+{
+	struct omap_pwm_led *led;
+	struct led_classdev *cdev;
+
+	led = container_of(handler, struct omap_pwm_led, early_suspend);
+	cdev = &led->cdev;
+
+	if (led->pdata->set_power != NULL)
+		led->pdata->set_power(led->pdata, 0);
+
+	omap_pwm_led_power_off(led);
+
+	led_classdev_suspend(&led->cdev);
+}
+
+static void omap_pwm_led_late_resume(struct early_suspend *handler)
+{
+	struct omap_pwm_led *led;
+	struct led_classdev *cdev;
+
+	led = container_of(handler, struct omap_pwm_led, early_suspend);
+	cdev = &led->cdev;
+
+	led_classdev_resume(&led->cdev);
+}
+#endif
+
+#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
 static int omap_pwm_led_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct omap_pwm_led *led = pdev_to_omap_pwm_led(pdev);
@@ -424,8 +472,10 @@ static int omap_pwm_led_resume(struct platform_device *pdev)
 static struct platform_driver omap_pwm_led_driver = {
 	.probe		= omap_pwm_led_probe,
 	.remove		= omap_pwm_led_remove,
+#ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend	= omap_pwm_led_suspend,
 	.resume		= omap_pwm_led_resume,
+#endif
 	.driver		= {
 		.name		= "omap_pwm_led",
 		.owner		= THIS_MODULE,
