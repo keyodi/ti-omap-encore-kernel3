@@ -33,10 +33,13 @@
 
 #define DEFAULT_BACKLIGHT_BRIGHTNESS    105
 
+struct boxer_panel_data {
+	struct regulator *vlcd;
+};
+
 static void boxer_backlight_set_power(struct omap_pwm_led_platform_data *self, int on_off)
 {
 	if (on_off) {
-		msleep(250);
 		gpio_direction_output(LCD_BACKLIGHT_EN_EVT2, 1);
 	}
 	else
@@ -59,7 +62,7 @@ static struct omap_pwm_led_platform_data boxer_backlight_data = {
 
 static struct platform_device boxer_backlight_led_device = {
 	.name		= "omap_pwm_led",
-	.id		= 0,
+	.id		= -1,
 	.dev		= {
 	.platform_data = &boxer_backlight_data,
 	},
@@ -93,35 +96,15 @@ static void encore_panel_disable_lcd(struct omap_dss_device *dssdev)
 	boxer_backlight_set_power(NULL, 0);
 }
 
+static struct boxer_panel_data boxer_panel;
+
 static struct omap_dss_device evt_lcd_device = {
-	.phy		= {
-		.dpi	= {
-			.data_lines	= 24,
-		},
-	},
-        .panel          = {
-		.config		= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-				  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
-		.timings	= {
-			.x_res          = 1024,
-			.y_res          = 600,
-			.pixel_clock    = 86400, /* in kHz */
-			.hfp            = 70,	 /* HFP fix 160 */
-			.hsw            = 40,    /* HSW = 1~140 */
-			.hbp            = 200,   /* HSW + HBP = 160 */
-			.vfp            = 10,    /* VFP fix 12 */
-			.vsw            = 10,    /* VSW = 1~20 */
-			.vbp            = 11,    /* VSW + VBP = 23 */
-		},
-		.width_in_um = 158000,
-		.height_in_um = 92000,
-        },
-	.name = "lcd",
-	.driver_name = "boxer_panel",
+	.name = "boxerLCD",
+	.driver_name = "boxer_panel_drv",
 	.type = OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines = 24,
 	.channel = OMAP_DSS_CHANNEL_LCD,
-	.platform_enable  = encore_panel_enable_lcd,
-	.platform_disable  = encore_panel_disable_lcd,
+	.data = &boxer_panel,
 };
 
 static struct omap_dss_device *evt_dss_devices[] = {
@@ -134,19 +117,13 @@ static struct omap_dss_board_info evt_dss_data = {
 	.default_device = &evt_lcd_device,
 };
 
-static struct omap2_mcspi_device_config evt_lcd_mcspi_config = {
-	.turbo_mode             = 0,
-	.single_channel         = 1,  /* 0: slave, 1: master */
-
-};
-
 struct spi_board_info evt_spi_board_info[] __initdata = {
 	{
 		.modalias               = "boxer_disp_spi",
 		.bus_num                = 4,
 		.chip_select            = 0,
 		.max_speed_hz           = 375000,
-		.controller_data        = &evt_lcd_mcspi_config,
+		.platform_data          = &evt_lcd_device,
 	},
 };
 
