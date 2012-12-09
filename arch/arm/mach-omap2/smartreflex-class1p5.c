@@ -301,7 +301,14 @@ done_calib:
 			u_volt_margin = volt_data->volt_margin;
 		}
 
-		u_volt_safe += u_volt_margin;
+		if (u_volt_margin & SR1P5_MARGIN_DISABLE_SR) {
+			/* XXX This should be impossible! */
+			pr_err("%s: SR calibration ran for %s OPP with vnom %d"
+				"for which SR was disabled??!\n", __func__,
+				voltdm->name, volt_data->volt_nominal);
+		} else {
+			u_volt_safe += u_volt_margin;
+		}
 	}
 
 	if (u_volt_safe > volt_data->volt_nominal) {
