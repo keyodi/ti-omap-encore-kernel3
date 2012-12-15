@@ -178,16 +178,6 @@ static void sr_class1p5_calib_work(struct work_struct *work)
 
 	volt_data = work_data->vdata;
 
-	/* Don't bother calibrating if SR is disabled for this OPP */
-	if (volt_data->volt_margin == SR1P5_MARGIN_DISABLE_SR) {
-		pr_info("%s: Calibration disabled for Vnom %d in voltdm %s",
-				__func__, volt_data->volt_nominal,
-				voltdm->name);
-		volt_data->volt_calibrated = volt_data->volt_nominal;
-		u_volt_current = omap_vp_get_curr_volt(voltdm);
-		goto finish;
-	}
-
 	work_data->num_calib_triggers++;
 	/* if we are triggered first time, we need to start isr to sample */
 	if (work_data->num_calib_triggers == 1) {
@@ -313,8 +303,6 @@ done_calib:
 	}
 
 	volt_data->volt_calibrated = u_volt_safe;
-
-finish:
 	/* Setup my dynamic voltage for the next calibration for this opp */
 	volt_data->volt_dynamic_nominal = omap_get_dyn_nominal(volt_data);
 
