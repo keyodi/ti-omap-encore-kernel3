@@ -37,6 +37,7 @@
 #include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 #include "omap_ion.h"
+#include "omap_ram_console.h"
 #include "timer-gp.h"
 
 #define ZOOM3_EHCI_RESET_GPIO		64
@@ -51,6 +52,12 @@
 #endif
 
 #define WILINK_UART_DEV_NAME            "/dev/ttyO1"
+
+#ifdef CONFIG_OMAP_RAM_CONSOLE
+#define ENCORE_RAM_CONSOLE_START	PLAT_PHYS_OFFSET + 0xE000000
+/* XXX: size is ridiculously large, but system won't boot with smaller */
+#define ENCORE_RAM_CONSOLE_SIZE		SZ_1M
+#endif
 
 /* These are defined in arch/arm/kernel/setup.c */
 extern unsigned int system_serial_low;
@@ -208,6 +215,11 @@ static void __init omap_encore_init(void)
 
 static void __init encore_reserve(void)
 {
+#ifdef CONFIG_OMAP_RAM_CONSOLE
+	omap_ram_console_init(ENCORE_RAM_CONSOLE_START,
+			ENCORE_RAM_CONSOLE_SIZE);
+#endif
+
 	/* do the static reservations first */
 	memblock_remove(OMAP3_PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
 
