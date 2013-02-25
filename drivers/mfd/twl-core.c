@@ -737,14 +737,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			.supply =	"usb3v1",
 		};
 
-	/* Add vmmc2 that is not pressent on 65921 power */
-		if (features & TPS_65921) {
-			child = add_regulator(TWL4030_REG_VMMC2, pdata->vmmc2,
-						features);
-			if (IS_ERR(child))
-				return PTR_ERR(child);
-		}
-
 	/* First add the regulators so that they can be used by transceiver */
 		if (twl_has_regulator()) {
 			/* this is a template that gets copied */

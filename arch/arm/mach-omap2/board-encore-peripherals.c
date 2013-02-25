@@ -315,12 +315,13 @@ static struct regulator_consumer_supply encore_vsim_supply = {
 };
 
 static struct regulator_consumer_supply encore_vmmc2_supply = {
+	.dev_name	= "omap_hsmmc.1",
 	.supply		= "vmmc",
 };
 
 static struct regulator_consumer_supply encore_vmmc3_supply = {
-	.supply		= "vmmc",
 	.dev_name	= "omap_hsmmc.2",
+	.supply		= "vmmc",
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -343,14 +344,19 @@ static struct regulator_init_data encore_vmmc2 = {
 	.constraints = {
 		.min_uV			= 1850000,
 		.max_uV			= 1850000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
+		.always_on		= 1,
+		.boot_on		= 1,
 	},
 	.num_consumer_supplies  = 1,
 	.consumer_supplies      = &encore_vmmc2_supply,
+};
+
+static struct fixed_voltage_config encore_vmmc2_fixed_config = {
+	.supply_name		= "vmmc2",
+	.microvolts		= 1850000,
+	.gpio			= -EINVAL,
+	.enabled_at_boot	= 1,
+	.init_data		= &encore_vmmc2,
 };
 
 /* VSIM for OMAP VDD_MMC1A (i/o for DAT4..DAT7) */
@@ -430,6 +436,14 @@ static struct platform_device omap_vwlan_device = {
 	.id		= 1,
 	.dev = {
 		.platform_data	= &encore_vwlan,
+	},
+};
+
+static struct platform_device encore_vmmc2_fixed_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &encore_vmmc2_fixed_config,
 	},
 };
 
@@ -527,7 +541,6 @@ printk("******IN boxer_twl_gpio_setup********\n");
 	*/
 	encore_vmmc1_supply.dev = mmc[1].dev;
 	encore_vsim_supply.dev = mmc[1].dev;
-	encore_vmmc2_supply.dev = mmc[0].dev;
 
 	return 0;
 }
@@ -687,7 +700,6 @@ static struct twl4030_platform_data encore_twldata = {
 	.keypad		= &encore_kp_twl4030_data,
 	.power		= &encore_t2scripts_data,
 	.vmmc1          = &encore_vmmc1,
-	.vmmc2          = &encore_vmmc2,
 	.vsim           = &encore_vsim,
 	.vpll2		= &encore_vpll2,
 	.vdac		= &encore_vdac,
@@ -770,6 +782,7 @@ void __init encore_peripherals_init(void)
 		ARRAY_SIZE(encore_board_devices));
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
+	platform_device_register(&encore_vmmc2_fixed_device);
 	usb_musb_init(NULL);
 	omap_serial_init();
 
