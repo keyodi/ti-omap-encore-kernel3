@@ -57,7 +57,8 @@ static uint32_t twl4030_rev;
 
 #define LVL_WAKEUP	0x08
 
-#define ENABLE_WARMRESET (1<<4)
+#define ENABLE_WARMRESET	(1<<4)
+#define STOPON_PWRON		(1<<6)
 
 #define END_OF_SCRIPT		0x3f
 
@@ -326,7 +327,7 @@ static int __init twl4030_config_warmreset_sequence(u8 address)
 	if (err)
 		goto out;
 
-	rd_data |= ENABLE_WARMRESET;
+	rd_data |= ENABLE_WARMRESET | STOPON_PWRON;
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, rd_data,
 				R_P1_SW_EVENTS);
 	if (err)
@@ -337,7 +338,7 @@ static int __init twl4030_config_warmreset_sequence(u8 address)
 	if (err)
 		goto out;
 
-	rd_data |= ENABLE_WARMRESET;
+	rd_data |= ENABLE_WARMRESET | STOPON_PWRON;
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, rd_data,
 				R_P2_SW_EVENTS);
 	if (err)
@@ -348,7 +349,7 @@ static int __init twl4030_config_warmreset_sequence(u8 address)
 	if (err)
 		goto out;
 
-	rd_data |= ENABLE_WARMRESET;
+	rd_data |= ENABLE_WARMRESET | STOPON_PWRON;
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, rd_data,
 				R_P3_SW_EVENTS);
 out:
