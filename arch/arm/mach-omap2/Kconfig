@@ -274,28 +274,27 @@ config MACH_ENCORE
 	select REGULATOR_FIXED_VOLTAGE
 	select WLAN_POWER_EVT1
 
+if MACH_ENCORE
+
 choice
-	bool "MPU clock speed for Encore"
+	prompt "MPU clock speed for Encore"
 	default ENCORE_MPU_1000MHZ
-	depends on MACH_ENCORE
 
 config ENCORE_MPU_STOCK
 	bool "800 MHz (stock clock speed for OMAP3621 and Encore)"
-	depends on MACH_ENCORE
 
 config ENCORE_MPU_1000MHZ
 	bool "1000 MHz (stock clock speed for OMAP3630)"
-	depends on MACH_ENCORE
 
 config ENCORE_MPU_1100MHZ
 	bool "1100 MHz overclock"
-	depends on MACH_ENCORE
 
 config ENCORE_MPU_1200MHZ
 	bool "1200 MHz overclock"
-	depends on MACH_ENCORE
 
 endchoice
+
+endif
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
