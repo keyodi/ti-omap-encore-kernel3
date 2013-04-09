@@ -261,7 +261,7 @@ static void cyttsp_extract_track_ids(struct cyttsp_xydata *xy_data, int *ids)
 	ids[3] = xy_data->touch34_id & 0xF;
 }
 
-static const struct cyttsp_tch *cyttsp_get_tch(struct cyttsp_xydata *xy_data,
+static struct cyttsp_tch *cyttsp_get_tch(struct cyttsp_xydata *xy_data,
 					       int idx)
 {
 	switch (idx) {
@@ -283,10 +283,17 @@ static void cyttsp_report_tchdata(struct cyttsp *ts)
 	struct cyttsp_xydata *xy_data = &ts->xy_data;
 	struct input_dev *input = ts->input;
 	int num_tch = GET_NUM_TOUCHES(xy_data->tt_stat);
-	const struct cyttsp_tch *tch;
+	struct cyttsp_tch *tch;
 	int ids[CY_MAX_ID];
 	int i;
+	u8 flags = ts->pdata->flags;
+	u32 maxx, maxy;
 	DECLARE_BITMAP(used, CY_MAX_ID);
+
+	if (flags & CY_FLAG_REVERSE_X)
+		maxx = ts->pdata->maxx;
+	if (flags & CY_FLAG_REVERSE_Y)
+		maxy = ts->pdata->maxy;
 
 	if (IS_LARGE_AREA(xy_data->tt_stat) == 1) {
 		/* terminate all active tracks */
@@ -308,11 +315,19 @@ static void cyttsp_report_tchdata(struct cyttsp *ts)
 
 	for (i = 0; i < num_tch; i++) {
 		tch = cyttsp_get_tch(xy_data, i);
+		if (flags & CY_FLAG_FLIP_XY)
+			CY_TCH_FLIP_XY(tch);
 
 		input_mt_slot(input, ids[i]);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
-		input_report_abs(input, ABS_MT_POSITION_X, be16_to_cpu(tch->x));
-		input_report_abs(input, ABS_MT_POSITION_Y, be16_to_cpu(tch->y));
+		input_report_abs(input, ABS_MT_POSITION_X,
+				(flags & CY_FLAG_REVERSE_X) ?
+				    (maxx - be16_to_cpu(tch->x)) :
+				    be16_to_cpu(tch->x));
+		input_report_abs(input, ABS_MT_POSITION_Y,
+				(flags & CY_FLAG_REVERSE_Y) ?
+				    (maxy - be16_to_cpu(tch->y)) :
+				    be16_to_cpu(tch->y));
 		input_report_abs(input, ABS_MT_PRESSURE, tch->z);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, tch->z);
 		input_report_abs(input, ABS_MT_WIDTH_MAJOR, 20);

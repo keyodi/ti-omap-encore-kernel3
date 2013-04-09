@@ -45,6 +45,8 @@ struct cyttsp_tch {
 	u8 z;
 } __packed;
 
+#define CY_TCH_FLIP_XY(tch)	{ __be16 tmp = (tch)->x; (tch)->x = (tch)->y; (tch)->y = tmp; }
+
 /* TrueTouch Standard Product Gen3 interface definition */
 struct cyttsp_xydata {
 	u8 hst_mode;

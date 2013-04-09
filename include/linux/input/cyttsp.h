@@ -44,6 +44,10 @@
 /* Active distance in pixels for a gesture to be reported */
 #define CY_ACT_DIST_DFLT 0xF8 /* pixels */
 
+#define CY_FLAG_FLIP_XY		1
+#define CY_FLAG_REVERSE_X	(1 << 1)
+#define CY_FLAG_REVERSE_Y	(1 << 2)
+
 struct cyttsp_platform_data {
 	u32 maxx;
 	u32 maxy;
@@ -57,6 +61,7 @@ struct cyttsp_platform_data {
 	char *name;
 	s16 irq_gpio;
 	u8 *bl_keys;
+	u8 flags;
 };
 
 #endif /* _CYTTSP_H_ */
