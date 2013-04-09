@@ -277,6 +277,22 @@ config MACH_ENCORE
 if MACH_ENCORE
 
 choice
+	prompt "Orientation of Encore screen"
+	default ENCORE_ORIENTATION_PORTRAIT
+
+config ENCORE_ORIENTATION_PORTRAIT
+	bool "Portrait (natural) orientation"
+	help
+	  The natural orientation for a Nook Color (N key at the bottom).
+
+config ENCORE_ORIENTATION_LANDSCAPE
+	bool "Landscape orientation"
+	help
+	  Landscape orientation with the N key to the right.
+
+endchoice
+
+choice
 	prompt "MPU clock speed for Encore"
 	default ENCORE_MPU_1000MHZ
 

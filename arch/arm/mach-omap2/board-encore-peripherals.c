@@ -102,12 +102,21 @@ struct kxtf9_platform_data kxtf9_platform_data_here = {
 
 	// Map the axes from the sensor to the device.
 	//. SETTINGS FOR THE EVT1A:
+#ifdef CONFIG_ENCORE_ORIENTATION_LANDSCAPE
+	.axis_map_x     = 0,
+	.axis_map_y     = 1,
+	.axis_map_z     = 2,
+	.negate_x       = 1,
+	.negate_y       = 1,
+	.negate_z       = 0,
+#else
 	.axis_map_x     = 1,
 	.axis_map_y     = 0,
 	.axis_map_z     = 2,
 	.negate_x       = 1,
 	.negate_y       = 0,
 	.negate_z       = 0,
+#endif
 	.data_odr_init          = ODR12_5F,
 	.ctrl_reg1_init         = KXTF9_G_8G | RES_12BIT | TDTE | WUFE | TPE,
 	.int_ctrl_init          = KXTF9_IEN | KXTF9_IEA | KXTF9_IEL,
@@ -151,9 +160,15 @@ int ft5x06_dev_init(int resource)
 }
 
 static struct ft5x06_platform_data ft5x06_platform_data = {
+#ifdef CONFIG_ENCORE_ORIENTATION_LANDSCAPE
+	.maxx = 1024,
+	.maxy = 600,
+	.flags = FLIP_DATA_FLAG | REVERSE_X_FLAG | REVERSE_Y_FLAG,
+#else
 	.maxx = 600,
 	.maxy = 1024,
 	.flags = REVERSE_Y_FLAG,
+#endif
 	.reset_gpio = OMAP_FT5x06_RESET_GPIO,
 	.use_st = FT_USE_ST,
 	.use_mt = FT_USE_MT,
@@ -189,8 +204,15 @@ int cyttsp_dev_init(int resource)
 static struct cyttsp_platform_data cyttsp_platform_data = {
 	.name = CY_I2C_NAME,
 	//.init = cyttsp_dev_init,
+#ifdef CONFIG_ENCORE_ORIENTATION_LANDSCAPE
+	.maxx = 1024,
+	.maxy = 600,
+	.flags = CY_FLAG_FLIP_XY | CY_FLAG_REVERSE_Y,
+#else
 	.maxx = 600,
 	.maxy = 1024,
+	.flags = 0,
+#endif
 	.use_hndshk = 0 /*CY_SEND_HNDSHK*/,
 	/* change act_intrvl to customize the Active power state
 	 * scanning/processing refresh interval for Operating mode
