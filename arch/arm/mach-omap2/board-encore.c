@@ -35,6 +35,7 @@
 #include <mach/board-encore.h>
 
 #include "mux.h"
+#include "pm.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 #include "omap_ion.h"
 #include "omap_ram_console.h"
@@ -102,6 +103,27 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.reset_gpio_port[0]	= -EINVAL,
 	.reset_gpio_port[1]	= ZOOM3_EHCI_RESET_GPIO,
 	.reset_gpio_port[2]	= -EINVAL,
+};
+
+/*
+ * cpuidle C-states definition override from the default values.
+ * The 'exit_latency' field is the sum of sleep and wake-up latencies.
+ */
+static struct cpuidle_params hub_cpuidle_params[] = {
+	/* C1 */
+	{110 + 162, 5 , 1},
+	/* C2 */
+	{106 + 180, 309, 1},
+	/* C3 */
+	{107 + 410, 46057, 1},
+	/* C4 */
+	{121 + 3374, 46057, 0},
+	/* C5 */
+	{855 + 1146, 46057, 1},
+	/* C6 */
+	{7580 + 4134, 484329, 0},
+	/* C7 */
+	{7505 + 15274, 484329, 1},
 };
 
 static int plat_kim_suspend(struct platform_device *pdev, pm_message_t state)
@@ -204,7 +226,7 @@ device_initcall(encore_wifi_init);
 static void __init omap_encore_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
-
+	omap3_pm_init_cpuidle(hub_cpuidle_params);
 	encore_peripherals_init();
 	encore_display_init();
 	omap_register_ion();
