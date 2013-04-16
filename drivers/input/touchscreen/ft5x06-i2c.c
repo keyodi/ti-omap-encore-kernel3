@@ -388,8 +388,6 @@ void ft5x06_xy_worker(struct work_struct *work)
         rev_y = false;
     }
 
-    rev_y = true;
-
     /* process the touches */
     switch (cur_tch)
     {
