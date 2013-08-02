@@ -220,7 +220,7 @@ dsscomp_t dsscomp_new(struct omap_overlay_manager *mgr)
 	comp->ovl_mask = comp->ovl_dmask = 0;
 	comp->frm.sync_id = 0;
 	if (cpu_is_omap3630())
-		comp->frm.mgr.ix = display_ix < 2 ? 0 : 1;
+		comp->frm.mgr.ix = 0;
 	else
 		comp->frm.mgr.ix = display_ix;
 
@@ -520,26 +520,7 @@ static int dsscomp_apply(dsscomp_t comp)
 	r = -ENODEV;
 	d = &comp->frm;
 
-	/* OMAP3 supports max two composition. comp->ix = 0 supports either
-	LCD or HDMI panel. comp->ix =1 supports VENC type display only*/
-	if (cpu_is_omap3630()) {
-		if (!comp->ix) {
-			for (i = 0; i < cdev->num_displays; i++) {
-				if (cdev->displays[i]->state ==
-					OMAP_DSS_DISPLAY_ACTIVE) {
-					display_ix = i;
-					break;
-				}
-			}
-		} else	{
-		if (cdev->displays[2]->state == OMAP_DSS_DISPLAY_ACTIVE)
-			display_ix = 2;
-		else
-			return r;
-		}
-	} else	{
-		display_ix = d->mgr.ix;
-	}
+	display_ix = d->mgr.ix;
 
 	if (display_ix >= cdev->num_displays)
 		goto done;
